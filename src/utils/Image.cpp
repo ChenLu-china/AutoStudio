@@ -4,12 +4,20 @@
 **/
 
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+
 #include <torch/torch.h>
+
+
+namespace Auto_Studio
+{
 
 using Tensor = torch::Tensor;
 
-
-Tensor Image::ReadImageTensor(const std::string& path) {
+Tensor Image::ReadImageTensor(const std::string& path)
+{
   int w, h, n;
   unsigned char *idata = stbi_load(path.c_str(), &w, &h, &n, 0);
 
@@ -20,3 +28,5 @@ Tensor Image::ReadImageTensor(const std::string& path) {
   img = img.to(torch::kFloat32).to(torch::kCPU) / 255.f;
   return img;
 }
+
+} // namespace Auto_Studio

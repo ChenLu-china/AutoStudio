@@ -1,0 +1,23 @@
+# Python cache
+__pycache__
+
+# Extra
+data_local
+External-past
+exp
+outputs
+libtorch
+build
+
+.idea
+
+nerf_llff_data
+360_v2
+my_collection
+free_data
+free_dataset
+data
+External
+
+image_list.txt
+runtime_config.yaml

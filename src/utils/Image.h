@@ -8,7 +8,7 @@
 #define IMAGE_H
 
 #include <string>
-#include <yaml-cpp/yaml.h>
+#include <torch/torch.h>
 
 
 namespace Auto_Studio

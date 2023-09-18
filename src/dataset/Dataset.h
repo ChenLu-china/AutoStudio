@@ -21,7 +21,7 @@ class Dataset
 private:
     /* data */
 public:
-    Dataset(GlobalData *pGD);
+    Dataset(GlobalData *global_data);
     ~Dataset();
 
 protected:

@@ -5,6 +5,9 @@
 using namespace std;
 
 
+namespace Auto_Studio
+{
+
 Dataset::Dataset(GlobalData *global_data):
     global_data_(global_data)
 {
@@ -25,10 +28,4 @@ Dataset::Dataset(GlobalData *global_data):
     }
 }
 
-
-
-int main()
-{
-    cout << "Hello world" << endl;
-    return 0;
-}
+} // namespace Auto_Studio
