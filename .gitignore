@@ -10,6 +10,7 @@ libtorch
 build
 
 .idea
+.vscode
 
 nerf_llff_data
 360_v2

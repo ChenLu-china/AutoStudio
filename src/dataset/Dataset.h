@@ -24,6 +24,9 @@ public:
     Dataset(GlobalData *global_data);
     ~Dataset();
 
+public:
+    int n_images_ = 0;
+
 protected:
     GlobalData* global_data_;
 
