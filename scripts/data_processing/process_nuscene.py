@@ -5,31 +5,10 @@ from util import *
 from pathlib import Path
 from nuscenes.nuscenes import NuScenes
 from typing import List
-
-from lib_tools import Omnidata
 import matplotlib.pyplot as plt
 
-def colorize(image, cmap="turbo"):
-    h, w, c = image.shape
-    # print(h, w, c)
-    if c == 1:  # depth
-        image = image.squeeze()
-        image_normalized = (image - np.min(image)) / (np.max(image) - np.min(image))
-        cmap = plt.get_cmap(cmap)
-        image_colorized = cmap(image_normalized)[:, :, :3]
-        return np.uint8(image_colorized * 255)
-    else:
-        return np.uint8(image * 255)
-
-def post_prediction(output, image_fname, output_vis_path=None, output_npy_path=None):
-    if output_vis_path is not None:
-        output_vis = colorize(output)
-        plt.imsave(output_vis_path / f"{image_fname.stem}.png", output_vis)
-    if output_npy_path is not None:
-        np.save(output_npy_path / f"{image_fname.stem}.npy", output)
-    # if args.plt_vis:
-    #     plt.imshow(colorize(output))
-    #     plt.show()
+from lib_tools import Omnidata
+from . import post_prediction
 
 def main(args):
     nuses = NuScenes(version=args.version, 
@@ -92,7 +71,6 @@ def main(args):
             image_filenames.append(data_dir / camera_data["filename"])
             intrinsics.append(calibrated_sensor_data["camera_intrinsic"])
             poses.append(pose)
-
 
             if args.omin_tasks is not None and Path(args.pretrained_models).exists():
                 for omin_task in args.omin_tasks:
