@@ -15,6 +15,7 @@ namespace Auto_Studio
 using Tensor = torch::Tensor;
 
 class GlobalData;
+class Image;
 
 class Dataset
 {

@@ -12,6 +12,6 @@ int main(int argc, char* argv[]) {
     std::string conf_path = "./runtime_config.yaml";
 
     auto global_data_pool_ = std::make_unique<Auto_Studio::GlobalData>(conf_path);
-    auto dataset = std::make_unique<Dataset>(global_data_pool_.get());
+    auto dataset = std::make_unique<Auto_Studio::Dataset>(global_data_pool_.get());
     return 0;
 }

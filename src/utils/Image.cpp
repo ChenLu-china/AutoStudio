@@ -9,6 +9,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 
 #include <torch/torch.h>
+#include "Image.h"
 
 
 namespace Auto_Studio

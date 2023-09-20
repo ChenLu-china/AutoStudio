@@ -23,7 +23,7 @@ Dataset::Dataset(GlobalData *global_data):
             for (int i = 0; i < n_images_; i++) {
             std::string image_path;
             std::getline(image_list, image_path);
-            images.push_back(Image::ReadImageTensor(image_path).to(torch::kCPU));
+            images.push_back(Auto_Studio::Image::ReadImageTensor(image_path).to(torch::kCPU));
         }
     }
 }
