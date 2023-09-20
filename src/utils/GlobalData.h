@@ -17,6 +17,9 @@ namespace Auto_Studio
 class GlobalData
 {
 public:
+    GlobalData(const std::string &config_file);
+
+public:
     YAML::Node config_;
 
     void *dataset_;

@@ -8,11 +8,11 @@
 #define DATASET_H
 #include <torch/torch.h>
 
-using Tensor = torch::Tensor;
-
 
 namespace Auto_Studio
 {
+
+using Tensor = torch::Tensor;
 
 class GlobalData;
 
@@ -27,7 +27,6 @@ public:
 public:
     int n_images_ = 0;
 
-protected:
     GlobalData* global_data_;
 
 

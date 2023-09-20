@@ -20,10 +20,10 @@ Dataset::Dataset(GlobalData *global_data):
     {
         // TO DO: add print info for image loading
         std::ifstream image_list(data_path + "/image_list.txt");
-        for (int i = 0; i < n_images_; i++) {
-        std::string image_path;
-        std::getline(image_list, image_path);
-        images.push_back(Auto_Studio::Image::ReadImageTensor(image_path).to(torch::kCPU));
+            for (int i = 0; i < n_images_; i++) {
+            std::string image_path;
+            std::getline(image_list, image_path);
+            images.push_back(Image::ReadImageTensor(image_path).to(torch::kCPU));
         }
     }
 }
