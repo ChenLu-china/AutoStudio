@@ -1,6 +1,8 @@
 #include <torch/torch.h>
 
 #include "Dataset.h"
+#include "../utils/Image.h"
+
 #include <iostream>
 using namespace std;
 
@@ -23,9 +25,12 @@ Dataset::Dataset(GlobalData *global_data):
             for (int i = 0; i < n_images_; i++) {
             std::string image_path;
             std::getline(image_list, image_path);
-            images.push_back(Auto_Studio::Image::ReadImageTensor(image_path).to(torch::kCPU));
+            images.push_back(Auto_Studio::Image::get_instance().ReadImageTensor(image_path).to(torch::kCPU));
         }
     }
+}
+Dataset::~Dataset(){
+
 }
 
 } // namespace Auto_Studio

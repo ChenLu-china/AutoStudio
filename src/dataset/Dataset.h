@@ -7,7 +7,7 @@
 #ifndef DATASET_H
 #define DATASET_H
 #include <torch/torch.h>
-
+#include "../utils/GlobalData.h"
 
 namespace Auto_Studio
 {

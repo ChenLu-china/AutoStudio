@@ -10,7 +10,7 @@
 
 #include <torch/torch.h>
 #include "Image.h"
-
+#include "../common.h"
 
 namespace Auto_Studio
 {

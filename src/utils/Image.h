@@ -19,6 +19,12 @@ using Tensor = torch::Tensor;
 class Image
 {
 public:
+    static inline Image& get_instance()
+    {
+        static Image instance;
+        return instance;
+    }
+
     Tensor ReadImageTensor(const std::string& image_path);
 };
 
