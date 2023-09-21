@@ -34,7 +34,7 @@ def make_image_list(data_path, factor):
         f.write(image_path + '\n')
 
 
-@hydra.main(version_base=None, config_path='../confs', config_name='default')
+@hydra.main(version_base=None, config_path='../confs', config_name='waymo')
 def main(conf: DictConfig) -> None:
     if 'work_dir' in conf:
         base_dir = conf['work_dir']

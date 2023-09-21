@@ -1,5 +1,5 @@
 /**
-* This file is part of auto_studio
+* This file is part of autostudio
 * Copyright (C) 
 **/
 
@@ -9,7 +9,7 @@
 #include <torch/torch.h>
 #include "../utils/GlobalData.h"
 
-namespace Auto_Studio
+namespace AutoStudio
 {
 
 using Tensor = torch::Tensor;
@@ -33,7 +33,7 @@ public:
 
 };
 
-} // namespace Auto_Studio
+} // namespace AutoStudio
 
 #endif // DATASET_H
 

@@ -11,7 +11,7 @@
 #include <torch/torch.h>
 
 
-namespace Auto_Studio
+namespace AutoStudio
 {
 
 using Tensor = torch::Tensor;
@@ -19,6 +19,7 @@ using Tensor = torch::Tensor;
 class Image
 {
 public:
+
     static inline Image& get_instance()
     {
         static Image instance;
@@ -26,8 +27,9 @@ public:
     }
 
     Tensor ReadImageTensor(const std::string& image_path);
+    bool WriteImageTensor(const std::string& image_path, Tensor img);
 };
 
-} // namespace Auto_Studio
+} // namespace AutoStudio
 
 #endif // IMAGE_H

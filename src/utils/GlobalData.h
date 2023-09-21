@@ -11,7 +11,7 @@
 #include <yaml-cpp/yaml.h>
 
 
-namespace Auto_Studio
+namespace AutoStudio
 {
 
 class GlobalData
@@ -25,6 +25,6 @@ public:
     void *dataset_;
 };
 
-} // namespace Auto_Studio
+} // namespace AutoStudio
 
 #endif // GLOBALDATA_H

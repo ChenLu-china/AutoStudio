@@ -7,12 +7,13 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 
 #include <torch/torch.h>
 #include "Image.h"
 #include "../common.h"
 
-namespace Auto_Studio
+namespace AutoStudio
 {
 
 using Tensor = torch::Tensor;
@@ -30,4 +31,11 @@ Tensor Image::ReadImageTensor(const std::string& path)
   return img;
 }
 
-} // namespace Auto_Studio
+bool Image::WriteImageTensor(const std::string& path, Tensor img)
+{
+  Tensor out_img = (img * 255.f).clip(0.f, 255.f).to(torch::kUInt8).to(torch::kCPU).contiguous();
+  stbi_write_png(path.c_str(), out_img.size(1), out_img.size(0), out_img.size(2), out_img.data_ptr(), 0);
+  return true;
+}
+
+} // namespace AutoStudio
