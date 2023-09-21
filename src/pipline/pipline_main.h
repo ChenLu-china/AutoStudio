@@ -20,6 +20,9 @@ class Runner{
 public:
   Runner(const std::string& config_path);
 
+  void Train();
+  void Render();
+  
 };
 
 } // namespace run

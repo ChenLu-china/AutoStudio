@@ -16,7 +16,8 @@ Dataset::Dataset(GlobalData *global_data):
     // TO DO: add print info
     const auto& config = global_data_->config_["dataset"];
     const auto data_path = config["data_path"].as<std::string>();
-
+    const auto factor = config["factor"].as<float>();
+    
     // Load images
     std::vector<Tensor> images;
     {
