@@ -7,7 +7,7 @@
 
 namespace AutoStudio{
 
-AutoStudio::camera::Camera::Camera(const std::string& cam_name){
-  
+AutoStudio::camera::Camera::Camera(const std::string& name){
+  cam_name = name;
 }
 } // namespace AutoStudio

@@ -242,10 +242,10 @@ def main(args):
         # this transforms from vehicle to world coordinates
         v2w = np.asarray(frames[0].pose.transform).reshape(4,4)
 
-        opengl2waymo = np.array([[0, 0, -1, 0],
-                                [-1, 0, 0, 0],
-                                [0, 1, 0, 0],
-                                [0, 0, 0, 1]])
+        # opengl2waymo = np.array([[0, 0, -1, 0],
+        #                         [-1, 0, 0, 0],
+        #                         [0, 1, 0, 0],
+        #                         [0, 0, 0, 1]])
 
         # transform points to world coordinates
         points_w = np.matmul(points_hom, v2w.T)
@@ -271,7 +271,7 @@ if __name__ == '__main__':
                        help="")
     
     # task
-    parser.add_argument("--tasks", type=str, default='depth_only',
+    parser.add_argument("--tasks", type=str, default='data_only',
                     choices=['data_only', 'omin_only', 'depth_only', 'vis_points'],
                     help="")
     # sky segmentation option

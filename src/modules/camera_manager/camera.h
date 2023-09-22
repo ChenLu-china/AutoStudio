@@ -22,10 +22,12 @@ struct alignas(32) Rays{
 };
 
 class Camera{
+
 public:
-  Camera(const std:);
-  ;
-  Tensor imgs = 
+  Camera(const std::string& cam_name);
+  
+  std::string cam_name;
+//   Tensor imgs = 
 };
 
 } // namespace camera

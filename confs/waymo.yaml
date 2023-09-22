@@ -9,3 +9,8 @@ defaults:
 
 
 dataset_name: waymo
+task_name: preprocessed_segment-10061305430875486848_1080_000_1100_000_with_camera_labels
+exp_name: test
+
+# cam_list: ["FRONT", "FRONT_LEFT", "FRONT_RIGHT"]
+cam_list: ["FRONT"]

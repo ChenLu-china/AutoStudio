@@ -14,24 +14,25 @@ backup_file_patterns = [
 ]
 
 
-def make_image_list(data_path, factor):
+def make_image_list(data_path, cam_list, factor):
     image_list = []
-    suffix = ['*.jpg', '*.png', '*.JPG', '*.jpeg']
-    if 0.999 < factor < 1.001:
-        for suf in suffix:
-            image_list += glob(os.path.join(data_path, 'images', suf)) +\
-                          glob(os.path.join(data_path, 'images_1', suf))
-    else:
-        f_int = int(np.round(factor))
-        for suf in suffix:
-            image_list += glob(os.path.join(data_path, 'images_{}'.format(f_int), suf))
+    for cam in cam_list:
+        suffix = ['*.jpg', '*.png', '*.JPG', '*.jpeg']
+        if 0.999 < factor < 1.001:
+            for suf in suffix:
+                image_list += glob(os.path.join(data_path, cam, 'images', suf)) +\
+                            glob(os.path.join(data_path, cam, 'images_1', suf))
+        else:
+            f_int = int(np.round(factor))
+            for suf in suffix:
+                image_list += glob(os.path.join(data_path, cam, 'images_{}'.format(f_int), suf))
 
-    assert len(image_list) > 0, "No image found"
-    image_list.sort()
+        assert len(image_list) > 0, "No image found"
+        image_list.sort()
 
-    f = open(os.path.join(data_path, 'image_list.txt'), 'w')
-    for image_path in image_list:
-        f.write(image_path + '\n')
+        f = open(os.path.join(data_path, cam, 'image_list.txt'), 'w')
+        for image_path in image_list:
+            f.write(image_path + '\n')
 
 
 @hydra.main(version_base=None, config_path='../confs', config_name='waymo')
@@ -43,10 +44,12 @@ def main(conf: DictConfig) -> None:
 
     print('Working directory is {}'.format(base_dir))
 
-    data_path = os.path.join(base_dir, 'data', conf['dataset_name'], conf['case_name'])
-    base_exp_dir = os.path.join(base_dir, 'exp', conf['case_name'], conf['exp_name'])
+    data_path = os.path.join(base_dir, 'data', conf['dataset_name'], conf['task_name'])
+    base_exp_dir = os.path.join(base_dir, 'exp', conf['task_name'], conf['exp_name'])
 
     os.makedirs(base_exp_dir, exist_ok=True)
+
+    cameras =[f"CAM_{cam}" for cam in conf['cam_list']]
 
     # backup codes
     file_backup_dir = os.path.join(base_exp_dir, 'record/')
@@ -59,13 +62,14 @@ def main(conf: DictConfig) -> None:
             os.makedirs(os.path.dirname(new_file_name), exist_ok=True)
             copyfile(file_name, new_file_name)
 
-    make_image_list(data_path, conf['dataset']['factor'])
+    make_image_list(data_path, cameras, conf['dataset']['factor'])
 
     conf = OmegaConf.to_container(conf, resolve=True)
     conf['dataset']['data_path'] = data_path
     conf['base_dir'] = base_dir
     conf['base_exp_dir'] = base_exp_dir
-
+    conf['cam_list'] = cameras
+    
     OmegaConf.save(conf, os.path.join(file_backup_dir, 'runtime_config.yaml'))
     OmegaConf.save(conf, './runtime_config.yaml')
 

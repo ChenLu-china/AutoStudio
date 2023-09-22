@@ -1,9 +1,9 @@
 #include <iostream>
 #include <memory>
 #include <torch/torch.h>
-#include "src/dataset/Dataset.h"
-#include "src/utils/GlobalData.h"
-
+// #include "src/dataset/Dataset.h"
+// #include "src/utils/GlobalData.h"
+#include "src/pipline/pipline_main.h"
 
 int main(int argc, char* argv[]) {
     std::cout << "Go Go Auto Studio!!!" << std::endl;
@@ -11,7 +11,8 @@ int main(int argc, char* argv[]) {
 
     std::string conf_path = "./runtime_config.yaml";
 
-    auto global_data_pool_ = std::make_unique<AutoStudio::GlobalData>(conf_path);
-    auto dataset = std::make_unique<AutoStudio::Dataset>(global_data_pool_.get());
+    // auto global_data_pool_ = std::make_unique<AutoStudio::GlobalData>(conf_path);
+    // auto dataset = std::make_unique<AutoStudio::Dataset>(global_data_pool_.get());
+    auto runner = std::make_unique<AutoStudio::run::Runner>(conf_path);
     return 0;
 }
