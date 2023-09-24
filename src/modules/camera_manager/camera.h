@@ -24,9 +24,16 @@ struct alignas(32) Rays{
 class Camera{
 
 public:
-  Camera(const std::string& cam_name);
+  Camera(const std::string& base_dir, const std::string& cam_name);
   
-  std::string cam_name;
+  std::string base_dir_;
+  std::string cam_name_;
+
+  int n_images_ = 0;
+  int height_, width_;
+  Tensor poses_, c2w_, intrinsics_;
+  
+  Tensor images_tensor;  
 //   Tensor imgs = 
 };
 

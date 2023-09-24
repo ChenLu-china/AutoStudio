@@ -15,14 +15,19 @@ namespace AutoStudio{
 
 AutoStudio::run::Runner::Runner(const std::string& conf_path){
   global_data_ = std::make_unique<GlobalData>(conf_path);
-  std::cout<< conf_path <<std::endl;
+  // std::cout<< conf_path <<std::endl;
   const auto& config = global_data_->config_;
   task_name_ = config["task_name"].as<std::string>();
   base_dir_ = config["base_dir"].as<std::string>();
 
-  const auto& cam_list = config["cam_list"];
-  std::cout<< cam_list[0] <<std::endl;
+  base_exp_dir_ = config["base_exp_dir"].as<std::string>();
+  global_data_->base_exp_dir_ = base_exp_dir_;
 
+  fs::create_directories(base_exp_dir_);
+
+  // Dataset 
+  dataset_ = std::make_unique<Dataset>(global_data_.get());
+  
 }
 
 } //namespace AutoStudio 

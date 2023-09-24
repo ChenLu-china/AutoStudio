@@ -63,10 +63,12 @@ def main(args):
             out_intrinsic_path = output_path / camera / f"intrinsics"
             os.makedirs(str(out_intrinsic_path), exist_ok=True)
             np.savetxt(out_intrinsic_path / f'{img_fname.stem}.txt', calibrated_sensor_data["camera_intrinsic"])
+            np.save(out_intrinsic_path / f'{img_fname.stem}.npy', calibrated_sensor_data["camera_intrinsic"])
 
             out_poses_path = output_path / camera / f"poses"
             os.makedirs(str(out_poses_path), exist_ok=True)
             np.savetxt(out_poses_path / f'{img_fname.stem}.txt', pose)  #opencv extrinsic
+            np.save(out_poses_path / f'{img_fname.stem}.npy', pose)  #opencv extrinsic
 
             image_filenames.append(data_dir / camera_data["filename"])
             intrinsics.append(calibrated_sensor_data["camera_intrinsic"])

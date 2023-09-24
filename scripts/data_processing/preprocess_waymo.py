@@ -88,6 +88,7 @@ def main(args):
                 # intrinsic_ = frame.context.camera_calibrations[img.name-1].intrinsic
 
                 np.savetxt(out_intrinsic_path / f"{str(i).zfill(8)}.txt", intrinsic)
+                np.save(out_intrinsic_path / f"{str(i).zfill(8)}.npy", intrinsic)
 
                 # process poses
                 out_poses_path = output_path / f"CAM_{cam_name}" / "poses"
@@ -101,7 +102,8 @@ def main(args):
                 # pose = np.matmul(trafo2, pose)
 
                 np.savetxt(out_poses_path / f"{str(i).zfill(8)}.txt", pose)  #opencv extrinsic
-
+                np.save(out_poses_path / f"{str(i).zfill(8)}.npy", pose)  #opencv extrinsic
+                
     elif args.tasks == 'depth_only':
         SCALE = 1.0
         FILENAME = args.data_dir + '/' + args.version

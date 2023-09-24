@@ -15,8 +15,9 @@ backup_file_patterns = [
 
 
 def make_image_list(data_path, cam_list, factor):
-    image_list = []
+    
     for cam in cam_list:
+        image_list = []
         suffix = ['*.jpg', '*.png', '*.JPG', '*.jpeg']
         if 0.999 < factor < 1.001:
             for suf in suffix:
@@ -49,7 +50,7 @@ def main(conf: DictConfig) -> None:
 
     os.makedirs(base_exp_dir, exist_ok=True)
 
-    cameras =[f"CAM_{cam}" for cam in conf['cam_list']]
+    cameras =[f"CAM_{cam}" for cam in conf['dataset']['cam_list']]
 
     # backup codes
     file_backup_dir = os.path.join(base_exp_dir, 'record/')
@@ -68,8 +69,8 @@ def main(conf: DictConfig) -> None:
     conf['dataset']['data_path'] = data_path
     conf['base_dir'] = base_dir
     conf['base_exp_dir'] = base_exp_dir
-    conf['cam_list'] = cameras
-    
+    conf['dataset']['cam_list'] = cameras
+
     OmegaConf.save(conf, os.path.join(file_backup_dir, 'runtime_config.yaml'))
     OmegaConf.save(conf, './runtime_config.yaml')
 

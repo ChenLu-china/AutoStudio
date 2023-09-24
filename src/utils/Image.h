@@ -28,6 +28,7 @@ public:
 
     Tensor ReadImageTensor(const std::string& image_path);
     bool WriteImageTensor(const std::string& image_path, Tensor img);
+    
 };
 
 } // namespace AutoStudio

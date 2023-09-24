@@ -19,8 +19,8 @@ class GlobalData
 public:
     GlobalData(const std::string &config_file);
 
-public:
     YAML::Node config_;
+    std::string base_exp_dir_;
 
     void *dataset_;
 };

@@ -14,8 +14,7 @@ namespace AutoStudio
 
 using Tensor = torch::Tensor;
 
-class GlobalData;
-class Image;
+// class GlobalData;
 
 class Dataset
 {
@@ -23,14 +22,13 @@ private:
     /* data */
 public:
     Dataset(GlobalData *global_data);
-    ~Dataset();
-
+    void Normalize();
 public:
     int n_images_ = 0;
 
     GlobalData* global_data_;
 
-
+    Tensor images_, poses_, intrinsics_;
 };
 
 } // namespace AutoStudio

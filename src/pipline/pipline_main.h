@@ -10,6 +10,7 @@
 #include <tuple>
 #include <torch/torch.h>
 #include "../utils/GlobalData.h"
+#include "../dataset/Dataset.h"
 
 namespace AutoStudio{
 namespace run{
@@ -26,6 +27,7 @@ public:
   // task information
   std::string task_name_, base_dir_, base_exp_dir_; 
   std::unique_ptr<GlobalData> global_data_;
+  std::unique_ptr<Dataset> dataset_;
 };
 
 } // namespace run
