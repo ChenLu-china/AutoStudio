@@ -3,3 +3,6 @@
 #define CUDAFloat torch::TensorOptions().dtype(torch::kFloat32).device(torch::kCUDA)
 #define CPUUInt8 torch::TensorOptions().dtype(torch::kUInt8).device(torch::kCPU)
 #define Slc torch::indexing::Slice
+
+
+#define CHECK_EQ(a, b) CHECK((a) == (b))

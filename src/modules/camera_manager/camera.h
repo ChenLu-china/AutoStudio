@@ -30,11 +30,13 @@ public:
   std::string cam_name_;
 
   int n_images_ = 0;
-  int height_, width_;
   Tensor poses_, c2w_, intrinsics_;
   
+  // Tensor c2w_train_, w2c_train_, intrinsic_train_;
+  std::vector<int> train_set_, test_set_, val_set_, split_info_;
+  
+  int height_, width_;
   Tensor images_tensor;  
-//   Tensor imgs = 
 };
 
 } // namespace camera
