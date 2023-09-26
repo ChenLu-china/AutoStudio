@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import List
 from collections import Counter
 
-from lib_tools import Omnidata
+from scripts.lib_tools import Omnidata
 from utils import post_prediction, visualize_depth
 
 from waymo_open_dataset.utils import range_image_utils
@@ -273,7 +273,7 @@ if __name__ == '__main__':
                        help="")
     
     # task
-    parser.add_argument("--tasks", type=str, default='data_only',
+    parser.add_argument("--tasks", type=str, default='omin_only',
                     choices=['data_only', 'omin_only', 'depth_only', 'vis_points'],
                     help="")
     # sky segmentation option
