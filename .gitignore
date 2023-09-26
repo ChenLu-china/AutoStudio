@@ -19,6 +19,7 @@ free_data
 free_dataset
 data
 External
+pretrained_models
 
 image_list.txt
 runtime_config.yaml

@@ -13,8 +13,12 @@ import numpy as np
 from pathlib import Path
 from typing import List
 from collections import Counter
+from tqdm import tqdm
 
-from scripts.lib_tools import Omnidata
+import sys
+sys.path.append(os.path.realpath('./scripts'))
+print(sys.path)
+from lib_tools import Omnidata
 from utils import post_prediction, visualize_depth
 
 from waymo_open_dataset.utils import range_image_utils
@@ -56,8 +60,8 @@ def main(args):
         os.makedirs(str(output_path), exist_ok=True)
 
         # process waymo images only
-        for i, elem in enumerate(frames):
-            for j, img in enumerate(elem.images):
+        for i, elem in tqdm(enumerate(frames)):
+            for j, img in tqdm(enumerate(elem.images)):
                 # print(img.name)
                 
                 cam_name = open_dataset.CameraName.Name.Name(img.name)
@@ -188,8 +192,10 @@ def main(args):
     
     elif args.tasks == 'omin_only':        
         # do this after data only
-        omnidata_normal = Omnidata('normal', args.pretrained_models)
-        omnidata_depth = Omnidata('depth', args.pretrained_models)
+        # omnidata_normal = Omnidata('normal', args.pretrained_models)
+        # omnidata_depth = Omnidata('depth', args.pretrained_models)
+        omnidata_normal = Omnidata('normal', args)
+        omnidata_depth = Omnidata('depth', args)
 
         cameras = ["CAM_" + camera for camera in args.cameras]
 
@@ -286,6 +292,9 @@ if __name__ == '__main__':
                        help="")
     parser.add_argument("--pretrained_models", type=str, default='/opt/data/private/chenlu/AutoStudio/pretrained_models/pretrained_omnidata',
                        help="")
+    parser.add_argument('--patch_size', type=int, default=32, help="")
+
+
     parser.add_argument("--output_path", type=str, default= '/opt/data/private/chenlu/AutoStudio/data/waymo/',
                        help="Path to store colorized predictions in png")
 

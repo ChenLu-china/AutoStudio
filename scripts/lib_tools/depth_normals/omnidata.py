@@ -25,7 +25,7 @@ class OmnidataConfig:
         if args is None:
             args = self.init_parsers()
         
-        self.omnidata_path = args.omnidata_path
+        # self.omnidata_path = args.omnidata_path
         self.pretrained_models = args.pretrained_models
         self.task = args.task
         self.img_path = args.img_path
@@ -60,13 +60,12 @@ class OmnidataConfig:
 @dataclass
 class Omnidata():
 
-    config=OmnidataConfig()
-
-    def __init__(self, task, pretrain_models:str) -> None:
-        self.root_dir = pretrain_models
-        self.omnidata_path = self.config.omnidata_path
-        self.config.task = task
-        self.patch_size = self.config.patch_size
+    # def __init__(self, task, pretrain_models:str) -> None:
+    def __init__(self, task, args):
+        self.root_dir = args.pretrained_models
+        # self.omnidata_path = config.omnidata_path
+        self.task = task
+        self.patch_size = args.patch_size
         self.model, self.trans_totensor = self._generate()
 
     def _load_normal_module(self, map_location, image_size:int =384, device=torch.device("cpu")):
@@ -124,11 +123,11 @@ class Omnidata():
 
         image_size = 384
 
-        if self.config.task == 'normal':
+        if self.task == 'normal':
             im2tensor = [transforms.ToTensor()]
             model, trans_totensor = self._load_normal_module(self.map_location, image_size, self.device)
         
-        elif self.config.task == 'depth':
+        elif self.task == 'depth':
             im2tensor = [transforms.ToTensor()]
             im2tensor.append(transforms.Normalize(mean=0.5, std=0.5))
             model, trans_totensor = self._load_depth_module(self.map_location, image_size, self.device)
