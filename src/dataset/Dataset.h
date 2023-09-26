@@ -32,9 +32,8 @@ public:
     Tensor center_;
     float radius_;
     
-    Tensor train_set_, val_set_, test_set_; 
-
-    Tensor images_, poses_, c2w_, intrinsics_;
+    Tensor train_set_, val_set_, test_set_;
+    Tensor images_, poses_, c2w_, w2c_, intrinsics_;
     Tensor c2w_train_;
 };
 

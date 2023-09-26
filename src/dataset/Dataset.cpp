@@ -23,10 +23,8 @@ Dataset::Dataset(GlobalData *global_data):
   const auto& cam_list = config["cam_list"];
   int n_cameras_ = cam_list.size();
 
-  std::vector<AutoStudio::camera::Camera> cameras;
-  std::vector<Tensor> images;
-  std::vector<Tensor> poses;
-  std::vector<Tensor> intrinsics;
+  std::vector<AutoStudio::Camera> cameras;
+  std::vector<Tensor> images, poses, intrinsics;
   std::vector<std::vector<int>> train_set, val_set, test_set;
 
   {
@@ -34,16 +32,16 @@ Dataset::Dataset(GlobalData *global_data):
     {
       std::string cam_name = cam_list[i].as<std::string>();
     //   std::cout<< cam_name <<std::endl;
-      AutoStudio::camera::Camera camera = AutoStudio::camera::Camera(data_path, cam_name);
+      AutoStudio::Camera camera = AutoStudio::Camera(data_path, cam_name, factor);
       set_shift(camera.train_set_,  n_images_);
       set_shift(camera.test_set_, n_images_);
       train_set.push_back(camera.train_set_);
       test_set.push_back(camera.test_set_);
 
-      std::cout << camera.test_set_ <<std::endl;
+    //   std::cout << camera.test_set_ <<std::endl;
       
       n_images_ = n_images_ + camera.n_images_;
-      images.push_back(camera.images_tensor);
+      images.push_back(camera.images_tensor_);
       poses.push_back(camera.poses_);
       intrinsics.push_back(camera.intrinsics_);
       
@@ -52,10 +50,11 @@ Dataset::Dataset(GlobalData *global_data):
       std::cout << n_images_ << std::endl;    
     }
     images_ = torch::stack(images, 0).contiguous();
-    poses_ = torch::stack(poses, 0).contiguous();
+    poses_ = torch::stack(poses, 0).contiguous().reshape({-1, 4, 4});
     intrinsics_ = torch::stack(intrinsics, 0).contiguous();
-  }
 
+    std::cout << poses_.sizes() << std::endl;
+  }
 
   Normalize();
   
@@ -69,14 +68,15 @@ void Dataset::Normalize()
   Tensor bias = cam_pos - center_.unsqueeze(0);
   radius_ = torch::linalg_norm(bias, 2, -1, false).max().item<float>();
   cam_pos = (cam_pos - center_.unsqueeze(0)) / radius_;
+  
   poses_.index_put_({Slc(), Slc(0, 3), 3}, cam_pos);
 
-//   poses_ = poses_.contiguous();
-//   c2w_ = poses_.clone();
-//   w2c_ = torch::eye(4, CUDAFloat).unsqueeze(0).repeat({n_images_, 1, 1}).contiguous();
-//   w2c_.index_put_({Slc(), Slc(0, 3), Slc()}, c2w_.clone());
-//   w2c_ = torch::linalg_inv(w2c_);
-//   w2c_ = w2c_.index({Slc(), Slc(0, 3), Slc()}).contiguous();
+  poses_ = poses_.contiguous();
+  c2w_ = poses_.clone();
+  w2c_ = torch::eye(4, CUDAFloat).unsqueeze(0).repeat({n_images_, 1, 1}).contiguous();
+  w2c_.index_put_({Slc(), Slc(0, 3), Slc()}, c2w_.clone());
+  w2c_ = torch::linalg_inv(w2c_);
+  w2c_ = w2c_.index({Slc(), Slc(0, 3), Slc()}).contiguous();
 //   bounds_ = (bounds_ / radius_).contiguous();
 
 //   Utils::TensorExportPCD(global_data_pool_->base_exp_dir_ + "/cam_pos.ply", poses_.index({Slc(), Slc(0, 3), 3}));
@@ -86,6 +86,5 @@ void Dataset::set_shift(std::vector<int>& set, const int shift_const)
 {
     for_each(set.begin(), set.end(), [&](int& elem){ elem = elem + shift_const;});
 }
-
 
 } // namespace AutoStudio

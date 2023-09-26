@@ -13,7 +13,7 @@
 #include "../dataset/Dataset.h"
 
 namespace AutoStudio{
-namespace run{
+
 
 class Runner{
   using Tensor = torch::Tensor;
@@ -30,5 +30,4 @@ public:
   std::unique_ptr<Dataset> dataset_;
 };
 
-} // namespace run
 } //namespace AutoStudio

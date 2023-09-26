@@ -19,10 +19,10 @@ namespace AutoStudio{
 
 using Tensor = torch::Tensor;
 
-AutoStudio::camera::Camera::Camera(const std::string& dir, const std::string& name){
+AutoStudio::Camera::Camera(const std::string& dir, const std::string& name, float factor){
   base_dir_ = dir;
   cam_name_ = name;
-    
+
   // Load images
   { 
     std::vector<Tensor> images;
@@ -35,7 +35,7 @@ AutoStudio::camera::Camera::Camera(const std::string& dir, const std::string& na
     // std::cout<< images.size()<<std::endl;
     height_ = images[0].size(0);
     width_ = images[0].size(1);
-    images_tensor = torch::stack(images, 0).contiguous();
+    images_tensor_ = torch::stack(images, 0).contiguous();
   }
   
   // Load poses and intrisics
@@ -59,6 +59,8 @@ AutoStudio::camera::Camera::Camera(const std::string& dir, const std::string& na
       std::string intrinsic_path = base_dir_ + "/" + cam_name_ + "/intrinsic" + "/" + filename + ".npy"; 
       cnpy::NpyArray arr_intri = cnpy::npy_load(intrinsic_path);
       Tensor intrinsic = torch::from_blob(arr_intri.data<double>(), arr_intri.num_vals, options).to(torch::kFloat32).to(torch::kCUDA);
+      intrinsic.index_put_({Slc(0, 2), Slc(0, 3)}, intrinsic.index({Slc(0, 2), Slc(0, 3)}) / factor);
+      
       intrinsics.push_back(intrinsic);
     }
     poses_ = torch::stack(poses, 0).reshape({-1 ,4, 4}).contiguous();
