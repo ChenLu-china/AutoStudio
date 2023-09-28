@@ -23,9 +23,6 @@ def post_prediction(output, image_fname, output_vis_path=None, output_npy_path=N
         plt.imsave(output_vis_path / f"{image_fname.stem}.png", output_vis)
     if output_npy_path is not None:
         np.save(output_npy_path / f"{image_fname.stem}.npy", output)
-    # if args.plt_vis:
-    #     plt.imshow(colorize(output))
-    #     plt.show()
 
 
 def visualize_depth(depth, cmap=cv2.COLORMAP_TWILIGHT_SHIFTED):

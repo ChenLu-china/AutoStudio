@@ -18,7 +18,7 @@ from tqdm import tqdm
 import sys
 sys.path.append(os.path.realpath('./scripts'))
 print(sys.path)
-from lib_tools import Omnidata
+from lib_tools.depth_normals.mini_omnidata import OmnidataModel
 from utils import post_prediction, visualize_depth
 
 from waymo_open_dataset.utils import range_image_utils
@@ -190,32 +190,30 @@ def main(args):
                 # img_d = visualize_depth(depth)
                 # img_d.save("lidar_depth.png")
     
-    elif args.tasks == 'omin_only':        
+    elif args.tasks == 'omni_only':        
         # do this after data only
-        # omnidata_normal = Omnidata('normal', args.pretrained_models)
-        # omnidata_depth = Omnidata('depth', args.pretrained_models)
-        omnidata_normal = Omnidata('normal', args)
-        omnidata_depth = Omnidata('depth', args)
+        omnidata_normal = OmnidataModel('normal', args.pretrained_models, device="cuda:0")
+        omnidata_depth = OmnidataModel('depth', args.pretrained_models, device="cuda:0")
 
         cameras = ["CAM_" + camera for camera in args.cameras]
 
         output_path = Path(args.output_path) / f"preprocessed_{args.scene_name}"
 
         for camera in cameras:
+            print(f'================ Process {camera} camera ================')
+
             img_path = output_path / cameras[0] / "images"
-            
             assert img_path.exists(), "Don't exist images file, please do data_only first"
 
             gen = (i for i in img_path.glob('*.png'))
             fnames = sorted(Counter(gen))
             
-            for i, img_fname in enumerate(fnames):
-                
+            for i, img_fname in tqdm(enumerate(fnames)):
                 if args.omin_tasks is not None and Path(args.pretrained_models).exists():
                     for omin_task in args.omin_tasks:
-                        out_vis_path = output_path / camera /f"vis_{omin_task}"
+                        out_vis_path = output_path / camera / f"vis_{omin_task}"
                         os.makedirs(str(out_vis_path), exist_ok=True)
-                        out_npy_path = output_path / camera /f"npy_{omin_task}"
+                        out_npy_path = output_path / camera / f"npy_{omin_task}"
                         os.makedirs(str(out_npy_path), exist_ok=True)
 
                         if omin_task == 'normal':
@@ -279,8 +277,8 @@ if __name__ == '__main__':
                        help="")
     
     # task
-    parser.add_argument("--tasks", type=str, default='omin_only',
-                    choices=['data_only', 'omin_only', 'depth_only', 'vis_points'],
+    parser.add_argument("--tasks", type=str, default='omni_only',
+                    choices=['data_only', 'omni_only', 'depth_only', 'vis_points'],
                     help="")
     # sky segmentation option
 
