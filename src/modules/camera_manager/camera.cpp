@@ -30,6 +30,7 @@ AutoStudio::Camera::Camera(const std::string& dir, const std::string& name, floa
     std::string image_path;
     while (std::getline(image_list, image_path)){
       ++n_images_;
+      img_idx_.push_back(n_images_);
       images.push_back(AutoStudio::Image::get_instance().ReadImageTensor(image_path).to(torch::kCPU));
     }
     // std::cout<< images.size()<<std::endl;
@@ -42,6 +43,7 @@ AutoStudio::Camera::Camera(const std::string& dir, const std::string& name, floa
   {
     std::vector<Tensor> poses;
     std::vector<Tensor> intrinsics;
+    std::vector<Tensor> dist_params;
 
     for (int i = 0; i < n_images_; ++i){
       // load poses
@@ -60,13 +62,17 @@ AutoStudio::Camera::Camera(const std::string& dir, const std::string& name, floa
       cnpy::NpyArray arr_intri = cnpy::npy_load(intrinsic_path);
       Tensor intrinsic = torch::from_blob(arr_intri.data<double>(), arr_intri.num_vals, options).to(torch::kFloat32).to(torch::kCUDA);
       intrinsic.index_put_({Slc(0, 2), Slc(0, 3)}, intrinsic.index({Slc(0, 2), Slc(0, 3)}) / factor);
-      
       intrinsics.push_back(intrinsic);
+      
+      // Todo:  input this from file 
+      Tensor dist_param = torch::zeros({1, 4}, options).to(torch::kFloat32).to(torch::kCUDA);
+      dist_params.push_back(dist_param);
     }
     poses_ = torch::stack(poses, 0).reshape({-1 ,4, 4}).contiguous();
     intrinsics_ = torch::stack(intrinsics, 0).reshape({-1, 3, 3}).contiguous();
     poses_ = poses_.to(torch::kCUDA).contiguous();
     intrinsics_ = intrinsics_.to(torch::kCUDA).contiguous();
+    dist_params_ = torch::stack(dist_params, 0).to(torch::kCUDA).contiguous();
   }
 
   // Load train/test/val split info
@@ -102,4 +108,31 @@ AutoStudio::Camera::Camera(const std::string& dir, const std::string& name, floa
   std::cout << test_set_ << std::endl;
   
 }
+
+RangeRays AutoStudio::Camera::AllRaysGenerator(int idx, int reso_level)
+{ 
+  auto options = torch::TensorOptions().dtype(torch::kInt32);
+  Tensor img_idx = torch::from_blob(img_idx_.data(), img_idx_.size(), options).contiguous().to(torch::kCUDA);
+
+  int H = height_;
+  int W = width_;
+  Tensor ii = torch::linspace(0.f, H - 1.f, H, CUDAFloat);
+  Tensor jj = torch::linspace(0.f, W - 1.f, W, CUDAFloat);
+  auto ij = torch::meshgrid({ ii, jj }, "ij");
+  auto i = ij[0].reshape({-1});
+  auto j = ij[1].reshape({-1});
+
+  // float near = bounds_.index({idx, 0}).item<float>();
+  // float far  = bounds_.index({idx, 1}).item<float>();
+
+  float near = 0.f;
+  float far = 40.f;
+
+  // Tensor bound_ = torch::stack({
+  //                                 torch::full({H * W}, near, CUDAFloat),
+  //                                 torch::full({H * W}, far, CUDAFloat)
+  //                               }, -1).contiguous();
+  auto [rays_o, rays_d] = Img2WorldRayFlex(img_idx, ij.to(torch::kInt32));
+}
+
 } // namespace AutoStudio

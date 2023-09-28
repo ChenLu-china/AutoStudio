@@ -57,6 +57,8 @@ Dataset::Dataset(GlobalData *global_data):
   }
 
   Normalize();
+
+  // gener
   
 }
 
