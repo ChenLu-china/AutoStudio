@@ -60,6 +60,8 @@ Dataset::Dataset(GlobalData *global_data):
   // Normalize camera poses under a unit
   Normalize();
   
+
+  // initial rays sample
   // generate all rays
   std::vector<Tensor> all_rays_o, all_rays_d, all_bounds;
   for (int i = 0; i < n_cameras_; ++i)
