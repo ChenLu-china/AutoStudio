@@ -29,7 +29,7 @@ public:
     };
 
     //Rays
-    BoundedRays ;
+    RangeRays rays ;
 
     RaySampleMode ray_sample_mode_;
 };

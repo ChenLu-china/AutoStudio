@@ -57,7 +57,7 @@ add_subdirectory(External/yaml-cpp)
 include_directories(External/yaml-cpp/include)
 
 # eigen
-# include_directories(External/eigen-3.4.0)
+include_directories(External/eigen-3.4.0)
 include(src/dataset/dataset.cmake)
 include(src/utils/utils.cmake)
 include(src/modules/modules.cmake)

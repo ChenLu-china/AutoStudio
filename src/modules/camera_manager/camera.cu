@@ -4,8 +4,9 @@
 
 #include "camera.h"
 #include <torch/torch.h>
-// #include <Eigen/Eigen>
+#include <Eigen/Eigen>
 #include "../../common.h"
+#include "rays.h"
 
 
 using Tensor = torch::Tensor;
@@ -122,28 +123,35 @@ __global__ void Img2WorldRayKernel(int n_rays,
   out_rays_o[ray_idx] = poses[cam_idx].block<3, 1>(0, 3);
 }
 
-Rays AutoStudio::Camera::Img2WorldRayFlex(const Tensor& img_indices, const Tensor& ij) {
+std::tuple<Tensor, Tensor> AutoStudio::Camera::Img2WorldRayFlex(const Tensor& img_indices, const Tensor& ij) {
   Tensor ij_shift = (ij + .5f).contiguous();
-  CK_CONT(cam_indices);
+  // std::cout << ij_shift[1][1] <<std::endl;
+  // std::cout << "pass1" <<std::endl;
+  CK_CONT(img_indices);
   CK_CONT(ij_shift);
   CK_CONT(poses_);
-  CK_CONT(intri_);
+  CK_CONT(intrinsics_);
   CK_CONT(dist_params_);
-  CHECK_EQ(poses_.sizes()[0], intri_.sizes()[0]);
-  CHECK_EQ(cam_indices.sizes()[0], ij.sizes()[0]);
+  CHECK_EQ(poses_.sizes()[0], intrinsics_.sizes()[0]);
+  CHECK_EQ(img_indices.sizes()[0], ij.sizes()[0]);
 
-  const int n_rays = cam_indices.sizes()[0];
+  const int n_rays = img_indices.sizes()[0];
   dim3 block_dim = LIN_BLOCK_DIM(n_rays);
   dim3 grid_dim  = LIN_GRID_DIM(n_rays);
 
   Tensor rays_o = torch::zeros({n_rays, 3}, CUDAFloat).contiguous();
   Tensor rays_d = torch::zeros({n_rays, 3}, CUDAFloat).contiguous();
+  
+  std::cout << n_rays <<std::endl;
+  std::cout << poses_.sizes() <<std::endl;
+  std::cout << intrinsics_.sizes() <<std::endl;
+  std::cout << dist_params_.sizes() <<std::endl;
 
   Img2WorldRayKernel<<<grid_dim, block_dim>>>(n_rays,
                                               RE_INTER(Watrix34f *, poses_.data_ptr()),
-                                              RE_INTER(Watrix33f *, intri_.data_ptr()),
+                                              RE_INTER(Watrix33f *, intrinsics_.data_ptr()),
                                               RE_INTER(Wec4f*, dist_params_.data_ptr()),
-                                              cam_indices.data_ptr<int>(),
+                                              img_indices.data_ptr<int>(),
                                               RE_INTER(Wec2f*, ij_shift.data_ptr()),
                                               RE_INTER(Wec3f*, rays_o.data_ptr()),
                                               RE_INTER(Wec3f*, rays_d.data_ptr()));

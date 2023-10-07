@@ -31,7 +31,7 @@ Dataset::Dataset(GlobalData *global_data):
     for (int i = 0; i < n_cameras_; ++i)
     {
       std::string cam_name = cam_list[i].as<std::string>();
-    //   std::cout<< cam_name <<std::endl;
+      std::cout<< cam_name <<std::endl;
       AutoStudio::Camera camera = AutoStudio::Camera(data_path, cam_name, factor);
       set_shift(camera.train_set_,  n_images_);
       set_shift(camera.test_set_, n_images_);
@@ -56,29 +56,47 @@ Dataset::Dataset(GlobalData *global_data):
     std::cout << poses_.sizes() << std::endl;
   }
 
-  Normalize();
 
-  // gener
+  // Normalize camera poses under a unit
+  Normalize();
+  
+  // generate all rays
+  std::vector<Tensor> all_rays_o, all_rays_d, all_bounds;
+  for (int i = 0; i < n_cameras_; ++i)
+  { 
+    if(i == 0){
+      AutoStudio::Camera camera = cameras[i];
+      auto all_rays = camera.AllRaysGenerator();
+      std::cout << all_rays.origins.sizes() << std::endl;
+    }
+  }
   
 }
 
 void Dataset::Normalize()
-{
+{ 
+ 
   const auto& config = global_data_->config_["dataset"];
   Tensor cam_pos = poses_.index({Slc(), Slc(0, 3), 3}).clone();
   center_ = cam_pos.mean(0, false);
   Tensor bias = cam_pos - center_.unsqueeze(0);
+  // std::cout << bias << std::endl;
   radius_ = torch::linalg_norm(bias, 2, -1, false).max().item<float>();
+  // std::cout << radius_ << std::endl;
   cam_pos = (cam_pos - center_.unsqueeze(0)) / radius_;
-  
+  // std::cout << cam_pos.sizes() << std::endl;
+
   poses_.index_put_({Slc(), Slc(0, 3), 3}, cam_pos);
+  // std::cout << poses_.sizes() << std::endl;
 
   poses_ = poses_.contiguous();
   c2w_ = poses_.clone();
+  // std::cout << c2w_.sizes() << std::endl;
   w2c_ = torch::eye(4, CUDAFloat).unsqueeze(0).repeat({n_images_, 1, 1}).contiguous();
-  w2c_.index_put_({Slc(), Slc(0, 3), Slc()}, c2w_.clone());
+  w2c_.index_put_({Slc(), Slc(0, 4), Slc()}, c2w_.clone());
   w2c_ = torch::linalg_inv(w2c_);
-  w2c_ = w2c_.index({Slc(), Slc(0, 3), Slc()}).contiguous();
+  w2c_ = w2c_.index({Slc(), Slc(0, 4), Slc()}).contiguous();
+  // std::cout << w2c_ << std::endl;
 //   bounds_ = (bounds_ / radius_).contiguous();
 
 //   Utils::TensorExportPCD(global_data_pool_->base_exp_dir_ + "/cam_pos.ply", poses_.index({Slc(), Slc(0, 3), 3}));

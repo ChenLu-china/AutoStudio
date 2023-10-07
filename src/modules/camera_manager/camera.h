@@ -20,11 +20,11 @@ class Camera{
 public:
   Camera(const std::string& base_dir, const std::string& cam_name, float factor);
   
-  RangeRays AllRaysGenerator(int idx, int reso_level);
+  RangeRays AllRaysGenerator();
 
-  Rays Img2WorldRayFlex(const Tensor& img_indices, const Tensor& ij);
+  std::tuple<Tensor, Tensor> Img2WorldRayFlex(const Tensor& img_indices, const Tensor& ij);
   Tensor CameraUndistort(const Tensor& cam_xy, const Tensor& dist_params);
-  
+
   std::string base_dir_;
   std::string cam_name_;
 
