@@ -1,11 +1,18 @@
-# pragma once
+/**
+* This file is part of autostudio
+* Copyright (C) 
+**/
 
+
+#ifndef SAMPLER_H
+#define SAMPLER_H
 #include <string>
 #include <torch/torch.h>
 #include "image.h"
 #include "../../utils/GlobalData.h"
 
-namespace AutoStudio{
+namespace AutoStudio
+{
 
 using Tensor = torch::Tensor;
 
@@ -50,3 +57,5 @@ public:
 
 
 } //namespace AutoStudio
+
+#endif // SAMPLER_H

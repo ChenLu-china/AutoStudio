@@ -6,7 +6,6 @@
 
 #ifndef IMAGE_H
 #define IMAGE_H
-
 #include <string>
 #include <torch/torch.h>
 
@@ -15,7 +14,6 @@ namespace AutoStudio
 {
 
 using Tensor = torch::Tensor;
-
 
 class Image
 {
@@ -37,6 +35,8 @@ public:
 
 class Sampler
 {  
+
+class GlobalData;
 
 public: 
     enum RaySampleMode {

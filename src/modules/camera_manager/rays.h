@@ -26,8 +26,8 @@ struct alignas(32) RangeRays{
     Tensor ranges;
 };
 
-
-class RaySampler{
+class RaySampler
+{
 
 public:
     RaySampler(GlobalData* global_data_pool);

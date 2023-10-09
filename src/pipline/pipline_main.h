@@ -12,8 +12,8 @@
 #include "../utils/GlobalData.h"
 #include "../dataset/Dataset.h"
 
-namespace AutoStudio{
-
+namespace AutoStudio
+{
 
 class Runner
 {

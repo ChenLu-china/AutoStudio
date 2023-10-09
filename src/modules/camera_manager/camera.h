@@ -10,7 +10,8 @@
 #include "rays.h"
 #include "image.h"
 
-namespace AutoStudio{
+namespace AutoStudio
+{
 
 using Tensor = torch::Tensor;
 
