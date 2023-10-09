@@ -30,6 +30,10 @@ public:
     Tensor GetFullPose();
 
     template <typename INPUT_T, typename OUTPUT_T>
+    std::vector<OUTPUT_T> GetFullImage();
+
+
+    template <typename INPUT_T, typename OUTPUT_T>
     std::vector<OUTPUT_T> Convert2DVec1D(std::vector<std::vector<INPUT_T>> vec2d);
 
 public:
