@@ -3,8 +3,8 @@
  *  @brief 
 */
 
-#pragma once
-
+#ifndef PIPELINE_MAIN_H
+#define PIPELINE_MAIN_H
 #include <string>
 #include <memory>
 #include <tuple>
@@ -15,8 +15,10 @@
 namespace AutoStudio{
 
 
-class Runner{
-  using Tensor = torch::Tensor;
+class Runner
+{
+
+using Tensor = torch::Tensor;
 
 public:
   Runner(const std::string& config_path);
@@ -31,3 +33,5 @@ public:
 };
 
 } //namespace AutoStudio
+
+#endif // PIPELINE_MAIN_H
