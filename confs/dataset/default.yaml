@@ -1,5 +1,5 @@
 factor: 1.0
-ray_sample_mode: all_images
+ray_sample_mode: single_image
 data_at_gpu: true
 bounds_factor: [ 0.5, 2.0 ]
 # cam_list: ["FRONT", "FRONT_LEFT", "FRONT_RIGHT"]

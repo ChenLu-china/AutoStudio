@@ -7,15 +7,17 @@
 namespace AutoStudio
 {
 
+using Tensor = torch::Tensor;
+
 struct alignas(32) Rays{
-    torch::Tensor origins;
-    torch::Tensor dirs;
+    Tensor origins;
+    Tensor dirs;
 };
 
 struct alignas(32) RangeRays{
-    torch::Tensor origins;
-    torch::Tensor dirs;
-    torch::Tensor ranges;
+    Tensor origins;
+    Tensor dirs;
+    Tensor ranges;
 };
 
 
@@ -23,17 +25,19 @@ class RaySampler{
 
 public:
     RaySampler(GlobalData* global_data_pool);
-
+    Tensor RandIdx();
+    RangeRays Train_Rays(); // out for modules
+    
     enum RaySampleMode {
         SINGLE_IMAGE, ALL_IMAGES,
     };
 
-    //Rays
-    RangeRays rays ;
-
+public:
+    RangeRays rays_;
     RaySampleMode ray_sample_mode_;
+    std::vector<std::string> images_fnames_;  
+    Tensor c2w_train_, w2c_train_, intri_train_, H_train_, W_train_, bound_train_;
 };
-
 
 
 
