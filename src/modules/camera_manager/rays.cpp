@@ -6,9 +6,10 @@
 
 namespace AutoStudio
 {
+
 using Tensor = torch::Tensor;
 
-AutoStudio::RaySampler::RaySampler(GlobalData* global_data_pool)
+RaySampler::RaySampler(GlobalData* global_data_pool)
 {
     const auto& config = global_data_pool->config_["dataset"];
     const auto& ray_sample_mode = config["ray_sample_mode"].as<std::string>();

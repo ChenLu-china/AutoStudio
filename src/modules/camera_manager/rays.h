@@ -1,5 +1,11 @@
-#pragma once
+/**
+* This file is part of autostudio
+* Copyright (C) 
+**/
 
+
+#ifndef RAYS_H
+#define RAYS_H
 #include <string>
 #include <torch/torch.h>
 #include "../../utils/GlobalData.h"
@@ -29,7 +35,8 @@ public:
     RangeRays Train_Rays(); // out for modules
     
     enum RaySampleMode {
-        SINGLE_IMAGE, ALL_IMAGES,
+        SINGLE_IMAGE,
+        ALL_IMAGES,
     };
 
 public:
@@ -39,6 +46,6 @@ public:
     Tensor c2w_train_, w2c_train_, intri_train_, H_train_, W_train_, bound_train_;
 };
 
+} // namespace AutoStudio
 
-
-} // AutoStudio
+#endif // RAYS_H

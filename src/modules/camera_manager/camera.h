@@ -3,8 +3,8 @@
  *  @brief 
 */
 
-# pragma once
-
+#ifndef CAMERA_H
+#define CAMERA_H
 #include <string>
 #include <torch/torch.h>
 #include "rays.h"
@@ -37,3 +37,5 @@ public:
 };
 
 } // namespace AutoStudio
+
+#endif // CAMERA_H
