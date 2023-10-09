@@ -10,6 +10,7 @@
 #include "../utils/GlobalData.h"
 #include "../modules/camera_manager/camera.h"
 #include "../modules/camera_manager/rays.h"
+#include "../modules/camera_manager/sampler.h"
 
 namespace AutoStudio
 {
@@ -35,13 +36,16 @@ public:
 
     template <typename INPUT_T, typename OUTPUT_T>
     std::vector<OUTPUT_T> Convert2DVec1D(std::vector<std::vector<INPUT_T>> vec2d);
+    
+
 
 public:
+    std::string set_name_, set_sequnceid;
     int n_images_ = 0;
     int n_camera_ = 0;
 
     GlobalData* global_data_;
-    
+
     Tensor center_;
     float radius_;
 
@@ -50,7 +54,7 @@ public:
     Tensor c2w_train_;
 
     std::vector<Camera> cameras_;
-    std::unique_ptr<AutoStudio::RaySampler> ray_sampler_;
+    // std::unique_ptr<AutoStudio::RaySampler> ray_sampler_;
 };
 
 } // namespace AutoStudio

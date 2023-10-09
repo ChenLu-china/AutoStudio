@@ -16,8 +16,6 @@ namespace AutoStudio
 
 using Tensor = torch::Tensor;
 
-GlobalData;
-
 struct alignas(32) Rays{
     Tensor origins;
     Tensor dirs;
@@ -33,28 +31,40 @@ class Sampler
 {  
 
 public: 
+
+    Sampler(GlobalData* global_data);
+    Sampler* GetInstance();
+    RangeRays GetTrainRays();
+
     enum RaySampleMode {
         SINGLE_IMAGE, ALL_IMAGES,
     };
 
-    Sampler(GlobalData* global_data);
-    
 public:
-    int batch_size_;
+    GlobalData* global_data_;
     RaySampleMode ray_sample_mode_;
+    int batch_size_;
+    std::vector<int> train_set_;
+    std::vector<Image> images_;   
 };
 
 
-class ImageSampler:Sampler
+class ImageSampler: public Sampler
 {
 public:
-    ImageSampler();
+    ImageSampler(GlobalData* global_data);
     
 public:
-    std::vector<int> train_set_;
+
     std::vector<Image> images_;
+
 };
 
+class RaySampler:public Sampler
+{
+public:
+    RaySampler(GlobalData* global_data);
+};
 
 } //namespace AutoStudio
 

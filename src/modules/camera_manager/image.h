@@ -33,29 +33,6 @@ public:
     
 };
 
-class Sampler
-{  
-
-class GlobalData;
-
-public: 
-    enum RaySampleMode {
-        SINGLE_IMAGE, ALL_IMAGES,
-    };
-
-    Sampler(GlobalData* global_data);
-    
-public:
-    RaySampleMode ray_sample_mode_;
-};
-
-
-class ImageSampler:Sampler
-{
-public:
-    ImageSampler();
-};
-
 } // namespace AutoStudio
 
 #endif // IMAGE_H

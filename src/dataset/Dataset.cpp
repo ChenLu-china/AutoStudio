@@ -4,6 +4,8 @@
 #include "../common.h"
 #include "../modules/camera_manager/image.h"
 #include "../modules/camera_manager/camera.h"
+#include "../modules/camera_manager/sampler.h"
+
 // #include "../modules/camera_manager/rays.h"
 
 #include <iostream>
@@ -19,7 +21,7 @@ Dataset::Dataset(GlobalData *global_data):
   const auto& config = global_data_->config_["dataset"];
   const auto data_path = config["data_path"].as<std::string>();
   const auto factor = config["factor"].as<float>();
-
+  const auto& ray_sample_mode = config["ray_sample_mode"].as<std::string>();
   const auto& cam_list = config["cam_list"];
   n_camera_ = cam_list.size();
 
@@ -61,8 +63,8 @@ Dataset::Dataset(GlobalData *global_data):
   Normalize();
   
   // initial rays sampler
-  // ray_sampler_ = std::make_unique<AutoStudio::RaySampler>(global_data_);
-  
+  // AutoStudio::Sampler ray_sampler = AutoStudio::Sampler(global_data_);
+  // rays_sampler_ = ray_sampler->GetInstance();
   // // select rays sample
   // if(ray_sampler_-> ray_sample_mode_ == 0){
   //   ray_sampler_ -> images_fnames_ = new_images_fnames;
