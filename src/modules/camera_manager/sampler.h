@@ -27,14 +27,15 @@ struct alignas(32) RangeRays{
     Tensor ranges;
 };
 
+
 class Sampler
-{  
+{ 
 
 public: 
 
     Sampler(GlobalData* global_data);
     Sampler* GetInstance();
-    // RangeRays GetTrainRays();
+    RangeRays GetTrainRays();
 
     enum RaySampleMode {
         SINGLE_IMAGE,
@@ -46,7 +47,7 @@ public:
     RaySampleMode ray_sample_mode_;
     int batch_size_;
     std::vector<int> train_set_;
-    std::vector<Image> images_;   
+    std::vector<Image> images_;
 };
 
 
@@ -54,10 +55,8 @@ class ImageSampler: public Sampler
 {
 public:
     ImageSampler(GlobalData* global_data);
-    
-public:
+    RangeRays GetTrainRays();
 
-    std::vector<Image> images_;
 
 };
 
@@ -65,6 +64,13 @@ class RaySampler:public Sampler
 {
 public:
     RaySampler(GlobalData* global_data);
+    void GenRandRaysIdx();
+    RangeRays GetTrainRays();
+
+    int64_t n_rays_;
+    int64_t cur_idx_;
+    Tensor rays_o_, rays_d_;
+    Tensor rays_idx_;
 };
 
 } //namespace AutoStudio

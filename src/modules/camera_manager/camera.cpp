@@ -24,8 +24,7 @@ AutoStudio::Camera::Camera(const std::string& dir, const std::string& name, floa
   base_dir_ = dir;
   cam_name_ = name;
 
-  // Load images 
-  std::vector<AutoStudio::Image> images;
+  // Load images
   { 
     std::vector<string> images_fnames;
     // std::vector<Tensor> images;
@@ -34,10 +33,10 @@ AutoStudio::Camera::Camera(const std::string& dir, const std::string& name, floa
     while (std::getline(image_list, image_path)){
       std::string dir_camera = base_dir_ + "/" + cam_name_;
       auto image = AutoStudio::Image(dir_camera, factor, n_images_);
-      images.push_back(image);
+      images_.push_back(image);
       n_images_ = n_images_ + 1;
     }
-    std::cout<< images.size()<<std::endl;
+    std::cout<< images_.size()<<std::endl;
 
   }
 

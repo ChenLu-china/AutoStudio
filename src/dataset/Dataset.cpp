@@ -63,6 +63,8 @@ Dataset::Dataset(GlobalData *global_data):
   Normalize();
   
   // initial rays sampler
+  auto images = GetFullImage<Image, Image>();
+  std::cout << images.size() << std::endl;
   // AutoStudio::Sampler ray_sampler = AutoStudio::Sampler(global_data_);
   // rays_sampler_ = ray_sampler->GetInstance();
   // // select rays sample
@@ -96,7 +98,9 @@ Dataset::Dataset(GlobalData *global_data):
 
 void Dataset::Normalize()
 { 
+  
   auto poses = GetFullPose();
+    std::cout << poses.sizes() << std::endl;
   const auto& config = global_data_->config_["dataset"];
   Tensor cam_pos = poses.index({Slc(), Slc(0, 3), 3}).clone();
   center_ = cam_pos.mean(0, false);
@@ -114,15 +118,31 @@ void Dataset::Normalize()
   c2w_ = poses_.clone();
   // std::cout << c2w_.sizes() << std::endl;
   w2c_ = torch::eye(4, CUDAFloat).unsqueeze(0).repeat({n_images_, 1, 1}).contiguous();
-  w2c_.index_put_({Slc(), Slc(0, 3), Slc()}, c2w_.clone());
+  w2c_.index_put_({Slc(), Slc(0, 4), Slc()}, c2w_.clone());
   w2c_ = torch::linalg_inv(w2c_);
-  w2c_ = w2c_.index({Slc(), Slc(0, 3), Slc()}).contiguous();
+  w2c_ = w2c_.index({Slc(), Slc(0, 4), Slc()}).contiguous();
+
   // std::cout << w2c_ << std::endl;
 //   bounds_ = (bounds_ / radius_).contiguous();
 
 //   Utils::TensorExportPCD(global_data_pool_->base_exp_dir_ + "/cam_pos.ply", poses_.index({Slc(), Slc(0, 3), 3}));
 }
 
+template <typename INPUT_T, typename OUTPUT_T>
+std::vector<OUTPUT_T> Dataset::GetFullImage()
+{ 
+  std::vector<OUTPUT_T> all_images;
+  std::cout << "pass" << std::endl;
+  for (int i = 0; i < n_camera_; ++i){
+    auto camera = cameras_[i];
+    auto images = camera.images_;
+    for (int j = 0; j < camera.n_images_; ++j)
+    {
+      all_images.push_back(images[j]);
+    }
+  }
+  return all_images;
+}
 
 
 Tensor Dataset::GetFullPose()
@@ -137,6 +157,7 @@ Tensor Dataset::GetFullPose()
       c2ws.push_back(images[j].c2w_);
     }
   }
+  
   Tensor c2ws_tensor = torch::stack(c2ws, 0).reshape({-1, 4, 4});
   c2ws_tensor = c2ws_tensor.to(torch::kFloat32).to(torch::kCUDA).contiguous();
   return c2ws_tensor;
