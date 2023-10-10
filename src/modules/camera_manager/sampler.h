@@ -34,10 +34,11 @@ public:
 
     Sampler(GlobalData* global_data);
     Sampler* GetInstance();
-    RangeRays GetTrainRays();
+    // RangeRays GetTrainRays();
 
     enum RaySampleMode {
-        SINGLE_IMAGE, ALL_IMAGES,
+        SINGLE_IMAGE,
+        ALL_IMAGES,
     };
 
 public:

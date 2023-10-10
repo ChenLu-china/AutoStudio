@@ -14,7 +14,8 @@ namespace AutoStudio
 
 using Tensor = torch::Tensor;
 
-Runner::Runner(const std::string& conf_path){
+Runner::Runner(const std::string& conf_path)
+{
   global_data_ = std::make_unique<GlobalData>(conf_path);
   // std::cout<< conf_path <<std::endl;
   const auto& config = global_data_->config_;
