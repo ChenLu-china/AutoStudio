@@ -27,7 +27,14 @@ Image::Image(const std::string& base_dir, const float& factor, const int& img_id
   pose_fname_ = base_dir + "/" + "poses" + "/" + filename + ".npy";
   intri_fname_ = base_dir + "/"  + "intrinsic" + "/" + filename + ".npy";
   
-  img_tensor_ = ReadImageTensor(img_fname_);
+  Tensor img_tensor = ReadImageTensor(img_fname_);
+  if(img_tensor.sizes()[2] == 4){
+    img_tensor_ = img_tensor.index({Slc(), Slc(), Slc(0, 3)});
+  }
+  else{
+    img_tensor_ = img_tensor;
+  }
+
   height_ = img_tensor_.size(0);
   width_ = img_tensor_.size(1);
   factor_ = factor_;
@@ -35,8 +42,10 @@ Image::Image(const std::string& base_dir, const float& factor, const int& img_id
   // load c2w
   cnpy::NpyArray arr_pose = cnpy::npy_load(pose_fname_);
   auto options = torch::TensorOptions().dtype(torch::kFloat64);
-  c2w_ = torch::from_blob(arr_pose.data<double>(), arr_pose.num_vals, options).to(torch::kFloat32).contiguous();
-  c2w_ = c2w_.reshape({4, 4}).contiguous();
+  Tensor c2w = torch::from_blob(arr_pose.data<double>(), arr_pose.num_vals, options).to(torch::kFloat32).contiguous();
+  Tensor c2w_4x4 = c2w.reshape({4, 4}).contiguous();
+  Tensor c2w_3x4 = c2w_4x4.index({Slc(0, 3, 1), Slc()});
+  c2w_ = c2w_3x4.reshape({3, 4}).contiguous();
 
   // load intrinsic
   cnpy::NpyArray arr_intri = cnpy::npy_load(intri_fname_);
@@ -83,6 +92,22 @@ bool Image::WriteImageTensor(const std::string& path, Tensor img)
   Tensor out_img = (img * 255.f).clip(0.f, 255.f).to(torch::kUInt8).to(torch::kCPU).contiguous();
   stbi_write_png(path.c_str(), out_img.size(1), out_img.size(0), out_img.size(2), out_img.data_ptr(), 0);
   return true;
+}
+
+void Image::toCUDA()
+{
+  img_tensor_ = img_tensor_.to(torch::kCUDA).contiguous();
+  c2w_ = c2w_.to(torch::kCUDA).contiguous();
+  intri_ = intri_.to(torch::kCUDA).contiguous();
+  dist_param_ = dist_param_.to(torch::kCUDA).contiguous();
+}
+
+void Image::toHost()
+{
+  img_tensor_ = img_tensor_.to(torch::kCPU).contiguous();
+  c2w_ = c2w_.to(torch::kCPU).contiguous();
+  intri_ = intri_.to(torch::kCPU).contiguous();
+  dist_param_ = dist_param_.to(torch::kCPU).contiguous();
 }
 
 } // namespace AutoStudio

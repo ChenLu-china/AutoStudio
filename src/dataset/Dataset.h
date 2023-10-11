@@ -37,14 +37,13 @@ public:
     template <typename INPUT_T, typename OUTPUT_T>
     std::vector<OUTPUT_T> Convert2DVec1D(std::vector<std::vector<INPUT_T>> vec2d);
     
-
-
 public:
-    std::string set_name_, set_sequnceid;
+    std::string set_name_, set_sequnceid_;
     int n_images_ = 0;
     int n_camera_ = 0;
-
+    
     GlobalData* global_data_;
+    Sampler*  sampler_;
 
     Tensor center_;
     float radius_;

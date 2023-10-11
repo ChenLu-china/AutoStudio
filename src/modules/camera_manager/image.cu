@@ -113,10 +113,10 @@ std::tuple<Tensor, Tensor> AutoStudio::Image::Img2WorldRayFlex(const Tensor& ij)
   Tensor rays_o = torch::zeros({n_rays, 3}, CUDAFloat).contiguous();
   Tensor rays_d = torch::zeros({n_rays, 3}, CUDAFloat).contiguous();
   
-  std::cout << n_rays <<std::endl;
-  std::cout << c2w_.sizes() <<std::endl;
-  std::cout << intri_.sizes() <<std::endl;
-  std::cout << dist_param_.sizes() <<std::endl;
+  // std::cout << n_rays <<std::endl;
+  // std::cout << c2w_.sizes() <<std::endl;
+  // std::cout << intri_.sizes() <<std::endl;
+  // std::cout << dist_param_.sizes() <<std::endl;
 
   Img2WorldRayKernel<<<grid_dim, block_dim>>>(n_rays,
                                               RE_INTER(Watrix34f *, c2w_.data_ptr()),

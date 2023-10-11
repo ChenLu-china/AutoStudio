@@ -62,3 +62,11 @@
 #define CHECK_LT(a, b) CHECK((a) < (b))
 #define CHECK_GE(a, b) CHECK((a) >= (b))
 #define CHECK_GT(a, b) CHECK((a) > (b))
+
+
+#define OptionInt torch::TensorOptions().dtype(torch::kInt)
+#define OptionInt32 torch::TensorOptions().dtype(torch::kInt32)
+#define OptionInt64 torch::TensorOptions().dtype(torch::kInt64)
+#define OptionFloat32 torch::TensorOptions().dtype(torch::kFloat32)
+#define OptionFloat64 torch::TensorOptions().dtype(torch::kFloat64)
+#define OptionLong torch::TensorOptions().dtype(torch::kLong)

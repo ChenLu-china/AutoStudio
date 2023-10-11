@@ -26,6 +26,9 @@ public:
     Tensor ReadImageTensor(const std::string& image_path);
     bool WriteImageTensor(const std::string& image_path, Tensor img);
     
+    void toHost();
+    void toCUDA();
+
     int height_, width_;
     float near_, far_, factor_;
     std::string img_fname_, pose_fname_, intri_fname_;

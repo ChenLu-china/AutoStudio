@@ -3,6 +3,7 @@
 * Copyright (C) 
 **/
 
+#pragma once
 
 #ifndef SAMPLER_H
 #define SAMPLER_H
@@ -34,8 +35,8 @@ class Sampler
 public: 
 
     Sampler(GlobalData* global_data);
-    Sampler* GetInstance();
-    RangeRays GetTrainRays();
+    Sampler* GetInstance(std::vector<Image> images, Tensor train_set);
+    virtual std::tuple<RangeRays, Tensor> GetTrainRays();
 
     enum RaySampleMode {
         SINGLE_IMAGE,
@@ -45,8 +46,8 @@ public:
 public:
     GlobalData* global_data_;
     RaySampleMode ray_sample_mode_;
-    int batch_size_;
-    std::vector<int> train_set_;
+    int32_t batch_size_;
+    Tensor train_set_;
     std::vector<Image> images_;
 };
 
@@ -55,21 +56,22 @@ class ImageSampler: public Sampler
 {
 public:
     ImageSampler(GlobalData* global_data);
-    RangeRays GetTrainRays();
-
-
+    std::tuple<RangeRays, Tensor> GetTrainRays() override;
 };
 
-class RaySampler:public Sampler
+class RaySampler: public Sampler
 {
 public:
     RaySampler(GlobalData* global_data);
+
+    void GenAllRays();
     void GenRandRaysIdx();
-    RangeRays GetTrainRays();
+
+    std::tuple<RangeRays, Tensor> GetTrainRays() override;
 
     int64_t n_rays_;
     int64_t cur_idx_;
-    Tensor rays_o_, rays_d_;
+    Tensor rgbs_, rays_o_, rays_d_, ranges_;
     Tensor rays_idx_;
 };
 
