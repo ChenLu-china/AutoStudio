@@ -6,21 +6,22 @@
 
 #include <torch/torch.h>
 #include <fmt/core.h>
-#include "camera.h"
-#include "image.h"
+#include "Camera.h"
+#include "Image.h"
 #include "../../utils/cnpy.h"
-#include "../../common.h"
+#include "../../Common.h"
 
 // namespace fs = std::experimental::filesystem::v1;
 #include <iostream>
 using namespace std;
 
 
-namespace AutoStudio{
+namespace AutoStudio
+{
 
 using Tensor = torch::Tensor;
 
-AutoStudio::Camera::Camera(const std::string& dir, const std::string& name, float factor){
+Camera::Camera(const std::string& dir, const std::string& name, float factor){
   base_dir_ = dir;
   cam_name_ = name;
 
@@ -30,7 +31,7 @@ AutoStudio::Camera::Camera(const std::string& dir, const std::string& name, floa
     // std::vector<Tensor> images;
     std::ifstream image_list(base_dir_ + "/" + cam_name_ + "/image_list.txt");
     std::string image_path;
-    while (std::getline(image_list, image_path)){
+    while (std::getline(image_list, image_path)) {
       std::string dir_camera = base_dir_ + "/" + cam_name_;
       auto image = AutoStudio::Image(dir_camera, factor, n_images_);
       images_.push_back(image);

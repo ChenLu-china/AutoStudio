@@ -3,7 +3,7 @@
 #include <torch/torch.h>
 // #include "src/dataset/Dataset.h"
 // #include "src/utils/GlobalData.h"
-#include "src/pipline/pipline_main.h"
+#include "src/pipeline/Pipeline.h"
 
 int main(int argc, char* argv[]) {
     std::cout << "Go Go Auto Studio!!!" << std::endl;

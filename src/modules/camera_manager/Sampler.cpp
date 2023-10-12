@@ -2,8 +2,8 @@
 #include <string>
 #include <fmt/core.h>
 #include <torch/torch.h>
-#include "sampler.h"
-#include "../../common.h"
+#include "Sampler.h"
+#include "../../Common.h"
 #include "../../utils/GlobalData.h"
 
 namespace AutoStudio
@@ -16,19 +16,14 @@ Sampler::Sampler(GlobalData* global_data):
 {
     // global_data_ = global_data;
     const auto& config = global_data_->config_["dataset"];
-    const auto& batch_size = config["batch_size"].as<std::int32_t>();
-    const auto& ray_sample_mode = config["ray_sample_mode"].as<std::string>();
+    const auto batch_size = config["batch_size"].as<std::int32_t>();
+    const auto ray_sample_mode = config["ray_sample_mode"].as<std::string>();
     
-    if (ray_sample_mode == "single_image")
-    {
+    if (ray_sample_mode == "single_image") {
         ray_sample_mode_ = RaySampleMode::SINGLE_IMAGE;
-    }
-    else if (ray_sample_mode == "all_images")
-    {
+    } else if (ray_sample_mode == "all_images") {
         ray_sample_mode_  = RaySampleMode::ALL_IMAGES;
-    }
-    else
-    {
+    } else {
         std::cout << "Invalid Rays Sampler Mode" << std::endl;
         std::exit;
     }
@@ -68,7 +63,7 @@ std::tuple<RangeRays, Tensor> Sampler::GetTrainRays()
  *  RaySampler fucntion implementation
 */
 
-ImageSampler::ImageSampler(GlobalData* global_data):Sampler(global_data)
+ImageSampler::ImageSampler(GlobalData* global_data) : Sampler(global_data)
 {   
     std::string set_name = global_data_->config_["dataset_name"].as<std::string>();
     fmt::print("The {} dataset use Single Image Sampler\n", set_name);
@@ -116,7 +111,7 @@ void RaySampler::GenAllRays()
 {
     const int n_image = train_set_.sizes()[0];
     std::vector<Tensor> rgbs, rays_o, rays_d, ranges;
-    for(int i = 0; i < n_image; ++i){
+    for (int i = 0; i < n_image; ++i) {
         int cam_idx = train_set_.index({i}).item<int>();
         auto image = images_[cam_idx];
         image.toCUDA();

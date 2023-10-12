@@ -2,10 +2,10 @@
 #include <torch/torch.h>
 
 #include "Dataset.h"
-#include "../common.h"
-#include "../modules/camera_manager/image.h"
-#include "../modules/camera_manager/camera.h"
-#include "../modules/camera_manager/sampler.h"
+#include "../Common.h"
+#include "../modules/camera_manager/Image.h"
+#include "../modules/camera_manager/Camera.h"
+#include "../modules/camera_manager/Sampler.h"
 
 
 namespace AutoStudio
@@ -18,14 +18,14 @@ Dataset::Dataset(GlobalData *global_data):
   const auto& config = global_data_->config_["dataset"];
   const auto data_path = config["data_path"].as<std::string>();
   const auto factor = config["factor"].as<float>();
-  const auto& ray_sample_mode = config["ray_sample_mode"].as<std::string>();
+  const auto ray_sample_mode = config["ray_sample_mode"].as<std::string>();
   const auto& cam_list = config["cam_list"];
   
   n_camera_ = cam_list.size();
   set_name_ = global_data_->config_["dataset_name"].as<std::string>();
   set_sequnceid_ = global_data_->config_["task_name"].as<std::string>();
 
-  std::vector<Tensor>  poses, intrinsics;
+  std::vector<Tensor> poses, intrinsics;
   std::vector<std::vector<int>> train_set, val_set, test_set;
   std::vector<std::vector<std::string>> images_fnames;
   std::vector<std::string> new_images_fnames;
@@ -56,7 +56,8 @@ Dataset::Dataset(GlobalData *global_data):
   auto sampler = std::make_unique<AutoStudio::Sampler>(global_data);
   
   auto images = GetFullImage<Image, Image>();
-  auto train_set_1d = Convert2DVec1D<int, int>(train_set);
+  // auto train_set_1d = Convert2DVec1D<int, int>(train_set);
+  auto train_set_1d = Flatten2DVector(train_set);
   Tensor train_set_tensor = torch::from_blob(train_set_1d.data(), train_set_1d.size(), OptionInt32);
   train_set_tensor = train_set_tensor.contiguous();
   
@@ -93,11 +94,10 @@ template <typename INPUT_T, typename OUTPUT_T>
 std::vector<OUTPUT_T> Dataset::GetFullImage()
 { 
   std::vector<OUTPUT_T> all_images;
-  for (int i = 0; i < n_camera_; ++i){
+  for (int i = 0; i < n_camera_; ++i) {
     auto camera = cameras_[i];
     auto images = camera.images_;
-    for (int j = 0; j < camera.n_images_; ++j)
-    {
+    for (int j = 0; j < camera.n_images_; ++j) {
       all_images.push_back(images[j]);
     }
   }
@@ -107,13 +107,11 @@ std::vector<OUTPUT_T> Dataset::GetFullImage()
 
 Tensor Dataset::GetFullPose()
 {
-
   std::vector<Tensor> c2ws;
-  for (int i = 0; i < n_camera_; ++i){
+  for (int i = 0; i < n_camera_; ++i) {
     auto camera = cameras_[i];
     auto images = camera.images_;
-    for (int j = 0; j < camera.n_images_; ++j)
-    {
+    for (int j = 0; j < camera.n_images_; ++j) {
       c2ws.push_back(images[j].c2w_);
     }
   }
@@ -124,22 +122,32 @@ Tensor Dataset::GetFullPose()
 }
 
 
-template <typename INPUT_T, typename OUTPUT_T>
-std::vector<OUTPUT_T> Dataset::Convert2DVec1D(std::vector<std::vector<INPUT_T>> vec2d)
+// template <typename INPUT_T, typename OUTPUT_T>
+// std::vector<OUTPUT_T> Dataset::Convert2DVec1D(std::vector<std::vector<INPUT_T>> vec2d)
+// {
+//   std::vector<INPUT_T> vec1d;
+//   for (int i = 0; i < vec2d.size(); ++i) {
+//     for (int j = 0; j < vec2d[0].size(); ++j) {
+//       vec1d.push_back(vec2d[i][j]);
+//     }
+//   }
+//   return vec1d;
+// }
+
+template <typename T>
+std::vector<T> Dataset::Flatten2DVector(const std::vector<std::vector<T>>& vec2d)
 {
-  std::vector<INPUT_T> vec1d;
-  for(int i = 0; i < vec2d.size(); ++i){
-    for (int j = 0; j < vec2d[0].size(); ++j)
-    {
-      vec1d.push_back(vec2d[i][j]);
-    }
+  std::vector<T> vec1d;
+
+  for (const std::vector<T>& inner_vec : vec2d) {
+    vec1d.insert(vec1d.end(), inner_vec.begin(), inner_vec.end());
   }
   return vec1d;
 }
 
 void Dataset::Set_Shift(std::vector<int>& set, const int shift_const)
 {
-    for_each(set.begin(), set.end(), [&](int& elem){ elem = elem + shift_const;});
+  for_each(set.begin(), set.end(), [&](int& elem){ elem = elem + shift_const;});
 }
 
 } // namespace AutoStudio

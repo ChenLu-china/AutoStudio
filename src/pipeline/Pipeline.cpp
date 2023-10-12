@@ -4,7 +4,7 @@
 #include <torch/torch.h>
 #include <experimental/filesystem>
 
-#include "pipline_main.h"
+#include "Pipeline.h"
 #include "../utils/GlobalData.h"
 
 namespace fs = std::experimental::filesystem::v1;
@@ -32,4 +32,4 @@ Runner::Runner(const std::string& conf_path)
   
 }
 
-} //namespace AutoStudio 
+} //namespace AutoStudio

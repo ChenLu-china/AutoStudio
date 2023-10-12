@@ -1,11 +1,12 @@
-// //
-// // Created by ppwang on 2022/9/21.
-// //
+/**
+* This file is part of autostudio
+* Copyright (C) 
+**/
 
 // #include "camera.h"
 // #include <torch/torch.h>
 // #include <Eigen/Eigen>
-// #include "../../common.h"
+// #include "../../Common.h"
 // #include "rays.h"
 
 

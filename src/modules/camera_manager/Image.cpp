@@ -10,8 +10,8 @@
 #include "../../utils/stb_image_write.h"
 
 #include <torch/torch.h>
-#include "image.h"
-#include "../../common.h"
+#include "Image.h"
+#include "../../Common.h"
 #include "../../utils/cnpy.h"
 
 namespace AutoStudio

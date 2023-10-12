@@ -7,8 +7,8 @@
 #define CAMERA_H
 #include <string>
 #include <torch/torch.h>
-#include "rays.h"
-#include "image.h"
+#include "Rays.h"
+#include "Image.h"
 
 namespace AutoStudio
 {

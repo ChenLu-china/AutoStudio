@@ -1,8 +1,11 @@
-//
-// Created by ppwang on 2022/5/8.
-//
-#pragma once
+/**
+* This file is part of autostudio
+* Copyright (C) 
+**/
 
+
+#ifndef COMMON_H
+#define COMMON_H
 #define None torch::indexing::None
 #define Slc torch::indexing::Slice
 
@@ -70,3 +73,5 @@
 #define OptionFloat32 torch::TensorOptions().dtype(torch::kFloat32)
 #define OptionFloat64 torch::TensorOptions().dtype(torch::kFloat64)
 #define OptionLong torch::TensorOptions().dtype(torch::kLong)
+
+#endif // COMMON_H

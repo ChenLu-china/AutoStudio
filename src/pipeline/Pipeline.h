@@ -3,8 +3,8 @@
  *  @brief 
 */
 
-#ifndef PIPELINE_MAIN_H
-#define PIPELINE_MAIN_H
+#ifndef PIPELINE_H
+#define PIPELINE_H
 #include <string>
 #include <memory>
 #include <tuple>
@@ -34,4 +34,4 @@ public:
 
 } //namespace AutoStudio
 
-#endif // PIPELINE_MAIN_H
+#endif // PIPELINE_H

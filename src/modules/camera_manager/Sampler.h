@@ -9,7 +9,7 @@
 #define SAMPLER_H
 #include <string>
 #include <torch/torch.h>
-#include "image.h"
+#include "Image.h"
 #include "../../utils/GlobalData.h"
 
 namespace AutoStudio

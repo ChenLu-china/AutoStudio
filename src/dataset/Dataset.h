@@ -8,9 +8,9 @@
 #define DATASET_H
 #include <torch/torch.h>
 #include "../utils/GlobalData.h"
-#include "../modules/camera_manager/camera.h"
-#include "../modules/camera_manager/rays.h"
-#include "../modules/camera_manager/sampler.h"
+#include "../modules/camera_manager/Camera.h"
+#include "../modules/camera_manager/Rays.h"
+#include "../modules/camera_manager/Sampler.h"
 
 namespace AutoStudio
 {
@@ -34,8 +34,10 @@ public:
     std::vector<OUTPUT_T> GetFullImage();
 
 
-    template <typename INPUT_T, typename OUTPUT_T>
-    std::vector<OUTPUT_T> Convert2DVec1D(std::vector<std::vector<INPUT_T>> vec2d);
+    // template <typename INPUT_T, typename OUTPUT_T>
+    // std::vector<OUTPUT_T> Convert2DVec1D(std::vector<std::vector<INPUT_T>> vec2d);
+    template <typename T>
+    std::vector<T> Flatten2DVector(const std::vector<std::vector<T>>& vec2d);
     
 public:
     std::string set_name_, set_sequnceid_;
