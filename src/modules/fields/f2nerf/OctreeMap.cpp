@@ -3,9 +3,12 @@
 * Copyright (C) 
 **/
 
+#include "OctreeMap.h"
+#include "../include/FieldModel.h"
+
 namespace AutoStudio
 {
-class OctreeMap
+class OctreeMap : public FieldModel
 {
 private:
     /* data */

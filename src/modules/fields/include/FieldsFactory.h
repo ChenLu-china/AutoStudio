@@ -10,10 +10,9 @@ namespace AutoStudio
 {
 enum class HashDType{
     // type   hash grid linear initial impl
-    Dense,
-    Hash,
+    OctreeMap,
     NGP,
-
+    SSFNGP,
 };  
 
 class FieldsFactory 
@@ -21,7 +20,9 @@ class FieldsFactory
 private:
     /* data */
 public:
-    std::unique_ptr<FieldModel> CreateField(GlobalData* global_data); 
+    FieldsFactory(GlobalData* global_data);
+    std::unique_ptr<FieldModel> CreateField();
+    
 };
 
 

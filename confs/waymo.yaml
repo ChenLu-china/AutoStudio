@@ -3,7 +3,7 @@ defaults:
   - dataset: default
   # - renderer: default
   # - pts_sampler: perspective
-  # - field: hash3d_anchored
+  - models: f2
   # - shader: sh_shader
   - _self_
 

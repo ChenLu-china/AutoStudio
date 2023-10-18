@@ -11,6 +11,8 @@ namespace AutoStudio
 {
 using Tensor = torch::Tensor;
 
-
+FieldsFactory::FieldsFactory(GlobalData* global_data){
+    auto models_cfg = global_data->config_["models"];
+}
 
 } // namespace AutoStudio
