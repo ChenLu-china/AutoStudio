@@ -1,7 +1,10 @@
 /**
-* This file is part of autostudio
+* This file is part of auto_studio
 * Copyright (C) 
-**/
+*  @file   camera.h
+*  @author LuChen, 
+*  @brief 
+*/
 
 #pragma once
 

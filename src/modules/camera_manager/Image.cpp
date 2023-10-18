@@ -1,7 +1,10 @@
 /**
 * This file is part of auto_studio
 * Copyright (C) 
-**/
+*  @file   camera.h
+*  @author LuChen, 
+*  @brief 
+*/
 
 
 #define STB_IMAGE_IMPLEMENTATION

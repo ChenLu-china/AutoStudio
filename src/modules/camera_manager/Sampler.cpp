@@ -1,3 +1,16 @@
+/**
+* This file is part of auto_studio
+* Copyright (C) 
+*  @file   camera.h
+*  @author LuChen, 
+*  @brief 
+*//**
+* This file is part of auto_studio
+* Copyright (C) 
+*  @file   camera.h
+*  @author LuChen, 
+*  @brief 
+*/
 
 #include <string>
 #include <fmt/core.h>
@@ -60,7 +73,7 @@ std::tuple<RangeRays, Tensor> Sampler::GetTrainRays()
 }
 
 /**
- *  RaySampler fucntion implementation
+ *  ImageSampler fucntion implementation
 */
 
 ImageSampler::ImageSampler(GlobalData* global_data) : Sampler(global_data)

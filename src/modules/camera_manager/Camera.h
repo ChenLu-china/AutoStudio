@@ -1,7 +1,12 @@
-/** @file   camera.h
- *  @author LuChen, 
- *  @brief 
+/**
+* This file is part of auto_studio
+* Copyright (C) 
+*  @file   camera.h
+*  @author LuChen, 
+*  @brief 
 */
+
+#pragma once
 
 #ifndef CAMERA_H
 #define CAMERA_H

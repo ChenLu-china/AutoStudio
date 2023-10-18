@@ -3,7 +3,3 @@
 * Copyright (C) 
 **/
 
-namespace AutoStudio
-{
-    
-} // namespace AutoStudio

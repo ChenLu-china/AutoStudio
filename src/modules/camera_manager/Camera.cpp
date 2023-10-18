@@ -1,7 +1,9 @@
-/** @file   camera.cpp
- *  @author LuChen, 
- *  @brief 
- *  @details load image fnames for all
+/**
+* This file is part of auto_studio
+* Copyright (C) 
+*  @file   camera.cpp
+*  @author LuChen, 
+*  @brief 
 */
 
 #include <torch/torch.h>
