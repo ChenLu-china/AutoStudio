@@ -6,5 +6,5 @@
 
 namespace AutoStudio
 {
-    
+
 } // namespace AutoStudio
