@@ -7,7 +7,8 @@
 #include "./include/BaseModel.h"
 
 
-namespace AutoStudio{
+namespace AutoStudio
+{
 
 using Tensor = torch::Tensor;
 
@@ -48,4 +49,4 @@ void BaseModel::Reset() {
   }
 }
 
-} // AutoStudio
+} // namespace AutoStudio
