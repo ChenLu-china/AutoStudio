@@ -15,6 +15,7 @@ import os
 import cv2
 import math
 import json
+import pickle
 import argparse
 import imageio.v2 as imageio
 import numpy as np
@@ -35,10 +36,20 @@ from typing import Optional
 from pathlib import Path
 
 import torch
+from collections import Counter
 from kornia.core import Tensor, stack
 from kornia.utils._compat import torch_meshgrid
-from dataLoader.ray_utils import rays_intersect_sphere
-from dataset.preprocessing import visualize_depth_numpy
+# from dataLoader.ray_utils import rays_intersect_sphere
+# from dataset.preprocessing import visualize_depth_numpy
+from utils import post_prediction, visualize_depth
+
+import sys
+sys.path.append(os.path.realpath('./scripts'))
+print(sys.path)
+from lib_tools.depth_normals.mini_omnidata import OmnidataModel
+
+import os
+os.environ['CURL_CA_BUNDLE'] = ''
 # display = Display(visible=True, size=(2560, 1440))
 # display.start()
 # import os 
@@ -347,7 +358,7 @@ def normalize_cam_dict(c2ws, target_radius=1., in_geometry_file=None, out_geomet
     def transform_pose(c2w, translate, scale):
         # C2W = np.linalg.inv(W2C)
         cam_center = c2w[:3, 3]
-        cam_center = (cam_center + translate) * scale
+        cam_center = (cam_center + translate) # * scale
         c2w[:3, 3] = cam_center
         return c2w # np.linalg.inv(C2W)
     
@@ -368,7 +379,7 @@ def normalize_cam_dict(c2ws, target_radius=1., in_geometry_file=None, out_geomet
     # with open(out_cam_dict_file, 'w') as fp:
     #     json.dump(out_cam_dict, fp, indent=2, sort_keys=True)
 
-def norm_poses(root_dir, cam_name, num_img, max_depth=None, img_size=None, vis_normCamera:bool=True):
+def norm_poses(root_dir, cam_name, num_img, max_depth=None, img_size=None, vis_normCamera:bool=False):
     sample_indices = list(range(num_img))
     
     cam_info = cam_infos[cam_name]
@@ -429,7 +440,7 @@ def norm_poses(root_dir, cam_name, num_img, max_depth=None, img_size=None, vis_n
     #     c2n.append(s2n @ poses[index])
     # c2n = torch.stack(c2n).float()
 
-    camera_norm_dict = {"Norm_Scale": scale}
+    # camera_norm_dict = {"Norm_Scale": scale}
     if vis_normCamera:
         for index in sample_indices:
             frame = {f"{index}.png":{"K": intrinsics_rz[index].tolist(), "C2W":norm_poses[index].tolist(), "img_size":img_size}}
@@ -439,7 +450,7 @@ def norm_poses(root_dir, cam_name, num_img, max_depth=None, img_size=None, vis_n
             json.dump(camera_norm_dict, f, ensure_ascii=False, indent=4)
         f.close()
 
-    return torch.from_numpy(norm_poses).float(), torch.stack(intrinsics_rz).float(), translate, scale
+    return torch.from_numpy(norm_poses).float(), torch.stack(intrinsics_rz).float() # , translate, scale
 
 
 def show_pc(p3d, frustums):
@@ -463,7 +474,7 @@ def read_mate(root_dir, cam_name, img_size, max_depth, show_pc:bool = False, vis
     num_img = len(os.listdir(color_dir))
 
     
-    c2ws, intrinsics, translate, scale = norm_poses(root_dir, cam_name, num_img, max_depth=max_depth, img_size=img_size)
+    c2ws, intrinsics = norm_poses(root_dir, cam_name, num_img, max_depth=max_depth, img_size=img_size)
     # norm_scale = s2n[0, 0]
     
     all_points, max_show = [], 5
@@ -481,8 +492,8 @@ def read_mate(root_dir, cam_name, img_size, max_depth, show_pc:bool = False, vis
         directions = get_ray_directions_use_intrinsics(img_size[0], img_size[1], intrinsic.numpy())
         rays_o, rays_d = get_rays(directions, c2w)
 
-        z_depth = Image.open(depth_dir / f'{index}.png')  # z-buffer depth
-        z_depth = depth2array(np.array(z_depth, dtype=np.float32))
+        # z_depth = Image.open(depth_dir / f'{index}.png')  # z-buffer depth
+        # z_depth = depth2array(np.array(z_depth, dtype=np.float32))
         
         if show_pc:
             if index <= max_show and show_pc:
@@ -497,17 +508,17 @@ def read_mate(root_dir, cam_name, img_size, max_depth, show_pc:bool = False, vis
                 show_pc(all_points, cameras)
         
         # caculate sphere intersections
-        sphere_intersection_displacement = rays_intersect_sphere(rays_o, rays_d, r=1)  # fg is in unit sphere
+        # sphere_intersection_displacement = rays_intersect_sphere(rays_o, rays_d, r=1)  # fg is in unit sphere
 
         # do pre-processing we need to process depth
-        ori_depth = z_depth.copy().reshape(-1)
-        rescaled_depth = ori_depth * 1000.0 * scale
-        dist_d = np.linalg.norm(rays_d.numpy(), axis=-1)
-        rescaled_distance = rescaled_depth * dist_d
-        selected_rescaled_depth = rescaled_depth.copy()
-        selected_rescaled_depth[rescaled_distance > sphere_intersection_displacement.numpy()] = 1.5
+        # ori_depth = z_depth.copy().reshape(-1)
+        # rescaled_depth = ori_depth * 1000.0 * scale
+        # dist_d = np.linalg.norm(rays_d.numpy(), axis=-1)
+        # rescaled_distance = rescaled_depth * dist_d
+        # selected_rescaled_depth = rescaled_depth.copy()
+        # selected_rescaled_depth[rescaled_distance > sphere_intersection_displacement.numpy()] = 1.5
 
-        saved_depth = rescaled_depth * 5000.0 # if you want to save depth as .png you can use this
+        # saved_depth = rescaled_depth * 5000.0 # if you want to save depth as .png you can use this
         
         # z_depth[z_depth > (max_depth / norm_scale.item()) ] = max_depth / norm_scale.item()
         # z_depth_cam = torch.from_numpy(np.array(Image.fromarray(z_depth).resize(img_size[::-1], Image.NEAREST))).float()
@@ -519,10 +530,10 @@ def read_mate(root_dir, cam_name, img_size, max_depth, show_pc:bool = False, vis
             rgb_map = (img.numpy() * 255).astype('uint8')
             rgb_map = np.concatenate((rgb_map, depth_map), axis=1)
             imageio.imwrite(f'rgbd_{index:03d}.png', rgb_map)
-        all_depth += [torch.from_numpy(rescaled_depth).float()]
-        all_depth_save += [torch.from_numpy(saved_depth).float()]
+        # all_depth += [torch.from_numpy(rescaled_depth).float()]
+        # all_depth_save += [torch.from_numpy(saved_depth).float()]
 
-    return torch.stack(all_rgb, dim=0), torch.stack(all_depth_save, dim=0), torch.stack(all_depth, dim=0), c2ws, intrinsics
+    return torch.stack(all_rgb, dim=0), c2ws, intrinsics
 
 def create_validation_set(src_folder, fraction):
     all_frames = [x.stem for x in sorted(list((src_folder / "color").iterdir()), key=lambda x: int(x.stem))]
@@ -534,73 +545,128 @@ def create_validation_set(src_folder, fraction):
         'test': selected_val
     }))
 
+def idx_to_frame_str(frame_index):
+    return f'{frame_index:08d}'
+
+def idx_to_img_filename(frame_index):
+    return f'{idx_to_frame_str(frame_index)}.jpg'
+
+
 
 def main(args):
     
-    dest = Path(args.root_path)
-    dest.mkdir(exist_ok=True)
+    if args.tasks == 'data_only':
+        dest = Path(args.data_dir) / args.scene_name
+        dest.mkdir(exist_ok=True)
 
-    n_img = 0
-    all_rgb, all_depth, all_depth_npy, all_pose, all_intrinsic = [], [], [], [], []
-    for camName in args.camera_list:
-        rgbs, depths, depths_npy, poses, intrinsics = read_mate(dest, camName, args.img_size, args.max_depth)
-        n_img += len(rgbs)
-        all_rgb.append(rgbs)
-        all_depth.append(depths)
-        all_depth_npy.append(depths_npy)
-        all_pose.append(poses)
-        all_intrinsic.append(intrinsics)
-    
-    all_rgb = torch.stack(all_rgb, 0).reshape([n_img] + args.img_size + [3])
-    all_depth = torch.stack(all_depth, 0).reshape([n_img] + args.img_size)
-    all_depth_npy = torch.stack(all_depth_npy, 0).reshape([n_img] + args.img_size)
-    all_pose = torch.stack(all_pose, 0).reshape([n_img, 4, 4])
-    all_intrinsic = torch.stack(all_intrinsic, 0).reshape([n_img, 3, 3])
-    
-    if args.save_path_name is not None:
-        save_path = dest / args.save_path_name
-        save_path.mkdir(exist_ok=True)
         
-        rgb_dest = save_path / "color"
-        depth_dest = save_path / "depth"
-        depth_npy_dest = save_path / "depth_npy"
-        pose_dest = save_path / "pose"
-        intrinsic_dest = save_path / "intrinsic"
+        output_path = Path(args.output_path) / f"preprocessed" / args.scene_name
+        
+        rgb_dest = output_path / "images"
+        os.makedirs(str(rgb_dest), exist_ok=True)
+        scenario_fpath = output_path / "scenario.pt"
+        
+        scene_observers = dict()
 
-        rgb_dest.mkdir(exist_ok=True)
-        depth_dest.mkdir(exist_ok=True)
-        depth_npy_dest.mkdir(exist_ok=True)
-        pose_dest.mkdir(exist_ok=True)
-        intrinsic_dest.mkdir(exist_ok=True)
+        for camName in args.cameras:
+            cam_dest = rgb_dest / f"cam_{camName}"
+            os.makedirs(str(cam_dest), exist_ok=True)
+            
+            h, w = args.img_size
 
-        for i in range(0, n_img, 1):
-            str_i = str(i).zfill(4)
-            img = all_rgb[i]
-            img = Image.fromarray((img.numpy() * 255).astype(np.uint8)).save(rgb_dest / f"{str_i}.png")
+            rgbs, poses, intrinsics = read_mate(dest, camName, args.img_size, args.max_depth)
+            str_ = f"camera_{camName}"
+            if str_ not in scene_observers:
+                scene_observers[str_] = dict(
+                    class_name='Camera', n_frames=0, 
+                    data=dict(hw=[], intr=[], c2w=[], global_frame_ind=[])
+                )
+            for i in range(len(rgbs)):
+                
+                #-------- Process observation groundtruths
+                img = rgbs[i].reshape(args.img_size + [3])
+                img_name = idx_to_img_filename(i)
+                img_path = cam_dest / img_name
+                img = Image.fromarray((img.numpy() * 255).astype(np.uint8)).save(str(img_path))
 
-            depth = all_depth[i]
-            depth = Image.fromarray(depth.numpy().astype(np.uint16)).save(depth_dest / f"{str_i}.png")
+                #------------------------------------------------------
+                #------------------     Cameras      ------------------
+                c2w = poses[i]
+                intri = intrinsics[i]
+                scene_observers[str_]['n_frames'] += 1
+                scene_observers[str_]['data']['hw'].append((h, w))
+                scene_observers[str_]['data']['intr'].append(intri)
+                scene_observers[str_]['data']['c2w'].append(c2w)
+            
+            # create_validation_set(save_path, 0.1)
+        scenario = dict()
+        scenario['observers'] = scene_observers
+        with open(scenario_fpath, 'wb') as f:
+            pickle.dump(scenario, f)
+            print(f"=> scenario saved to {scenario_fpath}")
+    
+    elif args.tasks == 'omni_only':  
+        # do this after data only
+        omnidata_normal = OmnidataModel('normal', args.pretrained_models, device="cuda:0")
+        omnidata_depth = OmnidataModel('depth', args.pretrained_models, device="cuda:0")
 
-            depth_npy = all_depth_npy[i]
-            np.save(depth_npy_dest / f"{str_i}.npy", depth_npy.numpy())
+        cameras = ["camera_" + camera for camera in args.cameras]
 
-            pose = all_pose[i]
-            np.savetxt(pose_dest / f"{str_i}.txt", pose.numpy())
+        output_path = Path(args.output_path) / f"preprocessed" / args.scene_name
 
-            intrinsic = intrinsics[i]
-            np.savetxt(intrinsic_dest / f"{str_i}.txt", intrinsic.numpy())
+        for camera in cameras:
+            print(f'================ Process {camera} camera ================')
 
-        create_validation_set(save_path, 0.1)
+            img_path = output_path / cameras[0] / "images"
+            assert img_path.exists(), "Don't exist images file, please do data_only first"
+
+            gen = (i for i in img_path.glob('*.png'))
+            fnames = sorted(Counter(gen))
+            
+            for i, img_fname in tqdm(enumerate(fnames)):
+                if args.omin_tasks is not None and Path(args.pretrained_models).exists():
+                    for omin_task in args.omin_tasks:
+                        out_vis_path = output_path / camera / f"vis_{omin_task}"
+                        os.makedirs(str(out_vis_path), exist_ok=True)
+                        out_npy_path = output_path / camera / f"npy_{omin_task}"
+                        os.makedirs(str(out_npy_path), exist_ok=True)
+
+                        if omin_task == 'normal':
+                            prediction = omnidata_normal(img_fname)
+                        elif omin_task == 'depth':
+                            prediction = omnidata_depth(img_fname)
+                        post_prediction(prediction, img_fname, out_vis_path, out_npy_path)
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="road data preprocessing")
-    parser.add_argument("--root_path", required=False, default="/opt/data/private/chenlu/TensoRF_Road/data/our_road/0", help='scenes file path')
-    parser.add_argument("--camera_list", type=str, default=["front_120"], action="append")
+    parser.add_argument("--data_dir", type=str, default='/opt/data/private/chenlu/AutoStudio/AutoStudio/data/carla/',
+                    help="")
+    parser.add_argument("--scene_name",type=str, default='0',
+                       help="")
     parser.add_argument("--img_size", type=int, default=[512, 768], action="append")
     parser.add_argument("--max_depth", type=float, default=100, help="max depth each image can see")
     parser.add_argument("--near_far", type=int, default=[512, 768], action="append")
-    parser.add_argument("--save_path_name", type=str, default="Carla_tensoRF")
+    parser.add_argument("--cameras", type=str, default=["front_120"],
+                    help="")
+    parser.add_argument("--save_path_name", type=str, default="Carla_SSF")
+    # task
+    parser.add_argument("--tasks", type=str, default='omni_only',
+                    choices=['data_only', 'omni_only', 'depth_only', 'vis_points'],
+                    help="")
+    
+    # omnidata options 
+    parser.add_argument("--omin_tasks", type=str, default=['normal','depth'],
+                       choices=[['normal'], ['depth'], ['normal', 'depth']],
+                       help="")
+    parser.add_argument("--pretrained_models", type=str, default='/opt/data/private/chenlu/AutoStudio/AutoStudio/pretrained_models/pretrained_omnidata',
+                       help="")
+    parser.add_argument('--patch_size', type=int, default=32, help="")
+
+
+    parser.add_argument("--output_path", type=str, default= '/opt/data/private/chenlu/AutoStudio/AutoStudio/data/carla',
+                       help="Path to store colorized predictions in png")
+    
     args = parser.parse_args()
 
 

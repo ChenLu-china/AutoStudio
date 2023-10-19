@@ -7,7 +7,7 @@
 #include <torch/torch.h>
 #include "Eigen/Eigen"
 #include "../../../Common.h"
-
+#include "../../../dataset/Dataset.h"
 
 namespace AutoStudio
 {
@@ -37,19 +37,18 @@ class Octree
 private:
     /* data */
 public:
-    Octree(int max_depth, float bbox_side_len, float split_dist_thres,
-             const Tensor& c2w, const Tensor& w2c, const Tensor& intri, const Tensor& bound);
-    ~Octree();
+    Octree(int max_depth, float bbox_side_len, float split_dist_thres, Dataset* dataset);
+    inline void AddTreeNode(int u, int depth, Wec3f center, float bbox_len);
+    std::vector<int> GetVaildCams(float bbox_len, const Tensor& center);
+
+    int max_depth_;
+    Tensor c2w_, w2c_, intri_, bound_;
+    float bbox_len_;
+    float dist_thres_;
+
+    std::vector<OctreeNode> octree_nodes_;
+    Tensor train_set_;
+    std::vector<Image> images_;
 };
-
-Octree::Octree(int max_depth, float bbox_side_len, float split_dist_thres,
-             const Tensor& c2w, const Tensor& w2c, const Tensor& intri, const Tensor& bound)
-{
-}
-
-Octree::~Octree()
-{
-}
-
 
 } // namespace AutoStudio

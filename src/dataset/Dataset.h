@@ -51,7 +51,7 @@ public:
     float radius_;
 
     Tensor train_set_, val_set_, test_set_;
-    Tensor images_, poses_, c2w_, w2c_, intrinsics_;
+    // Tensor images_, poses_, c2w_, w2c_, intrinsics_;
     Tensor c2w_train_;
 
     std::vector<Camera> cameras_;

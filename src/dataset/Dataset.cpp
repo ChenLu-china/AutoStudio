@@ -20,6 +20,7 @@ namespace AutoStudio
 Dataset::Dataset(GlobalData *global_data):
     global_data_(global_data)
 {
+  global_data_->dataset_ = reinterpret_cast<void*>(this);
   // TO DO: add print info
   const auto& config = global_data_->config_["dataset"];
   const auto data_path = config["data_path"].as<std::string>();
