@@ -9,6 +9,7 @@
 
 namespace AutoStudio
 {
+
 using Tensor = torch::Tensor;
 
 FieldsFactory::FieldsFactory(GlobalData* global_data){

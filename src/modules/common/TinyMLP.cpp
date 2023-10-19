@@ -1,7 +1,7 @@
 /**
 * This file is part of auto_studio
 * Copyright (C) 
-*  @file   camera.h
+*  @file   
 *  @author LuChen, 
 *  @brief 
 */
