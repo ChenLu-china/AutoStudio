@@ -7,6 +7,7 @@
 #include "Octree.h"
 #include "../../../dataset/Dataset.h"
 #include "../../camera_manager/Image.h"
+
 namespace AutoStudio
 {
 using Tensor = torch::Tensor;
@@ -18,6 +19,7 @@ AutoStudio::Octree::Octree(int max_depth, float bbox_side_len, float split_dist_
     max_depth_ = max_depth;
     bbox_len_ = bbox_side_len;
     dist_thres_ = split_dist_thres;
+    c2w_ = 
     train_set_ = data_set->train_set_;
     images_ = data_set->sampler_->images_;
 
@@ -58,15 +60,16 @@ inline void Octree::AddTreeNode(int u, int depth, Wec3f center, float bbox_len){
     auto visi_cams = GetVaildCams(bbox_len, center_hash);
 
 
+
 }
 
 std::vector<int> Octree::GetVaildCams(float bbox_len, 
                                const Tensor& center)
 {   
 
-    std::vector<Tensor> rays_o, rays_d;
+    std::vector<Tensor> rays_o, rays_d, bounds;
     const int n_image = train_set_.sizes()[0];
-    std::vector<Tensor> bounds;
+
     for(int i = 0; i < n_image; ++i)
     {   
         auto img = images_[i];
@@ -87,11 +90,11 @@ std::vector<int> Octree::GetVaildCams(float bbox_len,
         image.toHost();
         rays_o.push_back(ray_o);
         rays_d.push_back(ray_d);
-        bounds.push_back(img.)
+        bounds.push_back(torch::from_blob({img.near_, img.far_}));
     }
     Tensor rays_o_tensor = torch::stack(rays_o, 0).reshape({n_image, -1, 3}).to(torch::kFloat32).contiguous();
     Tensor rays_d_tensor = torch::stack(rays_d, 0).reshape({n_image, -1, 3}).to(torch::kFloat32).contiguous();
-    Tensor bounds = 
+    Tensor bounds_tensor = torch::stack(bounds, 0).reshape({n_image, 2}).to(torch::kFloat32).contiguous();
     Tensor a = ((center - bbox_len * .5f).index({None, None}) - rays_o_tensor) / rays_d_tensor;
     Tensor b = ((center - bbox_len * .5f).index({None, None}) - rays_o_tensor) / rays_d_tensor;
     a = torch::nan_to_num(a, 0.f, 1e6f, -1e6f);

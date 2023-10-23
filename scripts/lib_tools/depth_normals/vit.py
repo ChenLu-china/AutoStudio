@@ -480,7 +480,7 @@ def _make_vit_b_rn50_backbone(
 def _make_pretrained_vitb_rn50_384(
     pretrained, use_readout="ignore", hooks=None, use_vit_only=False
 ):
-    model = timm.create_model("vit_base_resnet50_384", pretrained=pretrained)
+    model = timm.create_model("vit_base_resnet50_384", pretrained=pretrained, pretrained_cfg_overlay=dict(file="/opt/data/private/chenlu/AutoStudio/AutoStudio/pretrained_models/models--timm--vit_base_r50_s16_384.orig_in21k_ft_in1k/pytorch_model.bin"))
 
     hooks = [0, 1, 8, 11] if hooks == None else hooks
     return _make_vit_b_rn50_backbone(

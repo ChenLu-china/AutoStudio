@@ -28,10 +28,18 @@ public:
     
     void Normalize(); // deep process Image c2w
     void Set_Shift(std::vector<int>& set, const int shift_const);
-    Tensor GetFullPose();
+    Tensor GetFullC2W_Tensor(bool device);
+    Tensor GetFullIntri_Tensor(bool device);
+
+    template <typename T>
+    std::vector<T> GetFullC2W(bool device);
+
+    template <typename T>
+    std::vector<T> GetFullIntri(bool device);
 
     template <typename INPUT_T, typename OUTPUT_T>
     std::vector<OUTPUT_T> GetFullImage();
+
 
 
     // template <typename INPUT_T, typename OUTPUT_T>
@@ -49,7 +57,7 @@ public:
 
     Tensor center_;
     float radius_;
-
+    Tensor c2w_, w2c_, poses_, intris_;
     Tensor train_set_, val_set_, test_set_;
     // Tensor images_, poses_, c2w_, w2c_, intrinsics_;
     Tensor c2w_train_;

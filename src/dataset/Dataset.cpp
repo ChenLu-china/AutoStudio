@@ -97,6 +97,68 @@ void Dataset::Normalize()
 //   Utils::TensorExportPCD(global_data_pool_->base_exp_dir_ + "/cam_pos.ply", poses_.index({Slc(), Slc(0, 3), 3}));
 }
 
+template <typename T>
+std::vector<T> Dataset::GetFullC2W(bool device)
+{
+  std::vector<T> c2ws;
+  for (int i = 0; i < n_camera_; ++i) {
+    auto camera = cameras_[i];
+    auto images = camera.images_;
+    for (int j = 0; j < camera.n_images_; ++j) {
+      if (device == 1) c2ws.push_back(images[j].c2w_.to(torch::kCUDA).contiguous());
+      else c2ws.push_back(images[j].c2w_);
+    }
+  }
+  return c2ws;
+}
+
+template <typename T>
+T Dataset::GetFullC2W_Tensor(bool device)
+{
+  std::vector<T> c2ws;
+  for (int i = 0; i < n_camera_; ++i) {
+    auto camera = cameras_[i];
+    auto images = camera.images_;
+    for (int j = 0; j < camera.n_images_; ++j) {
+      c2ws.push_back(images[j].c2w_);
+    }
+  }
+  
+  T c2ws_tensor = torch::stack(c2ws, 0).reshape({-1, 3, 4});
+  c2ws_tensor = c2ws_tensor.to(torch::kFloat32).to(torch::kCUDA).contiguous();
+  return c2ws_tensor;
+}
+
+template <typename T>
+std::vector<T> Dataset::GetFullIntri_Tensor(bool device)
+{
+    std::vector<T> intris;
+    for (int i = 0; i < n_camera_; ++i) {
+    auto camera = cameras_[i];
+    auto images = camera.images_;
+    for (int j = 0; j < camera.n_images_; ++j) {
+      if (device == 1) intris.push_back(images[j].intri_.to(torch::kCUDA).contiguous());
+      else intris.push_back(images[j].intri_);
+    }
+  }
+  return intris;
+}
+
+template <typename T>
+std::vector<T> Dataset::GetFullIntri(bool device)
+{
+    std::vector<T> intris;
+    for (int i = 0; i < n_camera_; ++i) {
+    auto camera = cameras_[i];
+    auto images = camera.images_;
+    for (int j = 0; j < camera.n_images_; ++j) {
+      if (device == 1) intris.push_back(images[j].intri_.to(torch::kCUDA).contiguous());
+      else intris.push_back(images[j].intri_);
+    }
+  }
+  return intris;
+}
+
 template <typename INPUT_T, typename OUTPUT_T>
 std::vector<OUTPUT_T> Dataset::GetFullImage()
 { 
@@ -112,7 +174,7 @@ std::vector<OUTPUT_T> Dataset::GetFullImage()
 }
 
 
-Tensor Dataset::GetFullPose()
+Tensor Dataset::GetFullPose_Tensor(bool device)
 {
   std::vector<Tensor> c2ws;
   for (int i = 0; i < n_camera_; ++i) {

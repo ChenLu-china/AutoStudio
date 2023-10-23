@@ -17,6 +17,12 @@ def colorize(image, cmap="turbo"):
         return np.uint8(image * 255)
 
 
+def post_prediction_SSF(output, image_fname, output_path=None):
+        output_vis = colorize(output)
+        plt.imsave(output_path / f"{image_fname.stem}.png", output_vis)
+        np.save(output_path / f"{image_fname.stem}.npy", output)
+
+
 def post_prediction(output, image_fname, output_vis_path=None, output_npy_path=None):
     if output_vis_path is not None:
         output_vis = colorize(output)

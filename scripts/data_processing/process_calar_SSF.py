@@ -15,18 +15,19 @@ import os
 import cv2
 import math
 import json
+import torch
 import pickle
 import argparse
-import imageio.v2 as imageio
 import numpy as np
+import open3d as o3d
 import skimage.io as io
+import imageio.v2 as imageio
+import torch.nn.functional as F
+
 from PIL import Image
 from skimage import img_as_ubyte
 from tqdm import tqdm
-
 from numpy.matlib import repmat
-import torch.nn.functional as F
-import open3d as o3d
 from matplotlib import pyplot as plt
 
 # from pyvirtualdisplay import Display
@@ -34,21 +35,18 @@ from matplotlib import pyplot as plt
 # ImageFile.LOAD_TRUNCATED_IMAGES = True
 from typing import Optional
 from pathlib import Path
-
-import torch
 from collections import Counter
 from kornia.core import Tensor, stack
 from kornia.utils._compat import torch_meshgrid
 # from dataLoader.ray_utils import rays_intersect_sphere
 # from dataset.preprocessing import visualize_depth_numpy
-from utils import post_prediction, visualize_depth
+from utils import post_prediction_SSF, visualize_depth
 
 import sys
 sys.path.append(os.path.realpath('./scripts'))
 print(sys.path)
 from lib_tools.depth_normals.mini_omnidata import OmnidataModel
 
-import os
 os.environ['CURL_CA_BUNDLE'] = ''
 # display = Display(visible=True, size=(2560, 1440))
 # display.start()
@@ -610,32 +608,40 @@ def main(args):
         omnidata_normal = OmnidataModel('normal', args.pretrained_models, device="cuda:0")
         omnidata_depth = OmnidataModel('depth', args.pretrained_models, device="cuda:0")
 
-        cameras = ["camera_" + camera for camera in args.cameras]
+        cameras = ["cam_" + camera for camera in args.cameras]
 
         output_path = Path(args.output_path) / f"preprocessed" / args.scene_name
 
         for camera in cameras:
             print(f'================ Process {camera} camera ================')
 
-            img_path = output_path / cameras[0] / "images"
+            img_path = output_path / "images" / cameras[0]
             assert img_path.exists(), "Don't exist images file, please do data_only first"
 
-            gen = (i for i in img_path.glob('*.png'))
+            gen = (i for i in img_path.glob('*.jpg'))
             fnames = sorted(Counter(gen))
             
             for i, img_fname in tqdm(enumerate(fnames)):
                 if args.omin_tasks is not None and Path(args.pretrained_models).exists():
                     for omin_task in args.omin_tasks:
-                        out_vis_path = output_path / camera / f"vis_{omin_task}"
-                        os.makedirs(str(out_vis_path), exist_ok=True)
-                        out_npy_path = output_path / camera / f"npy_{omin_task}"
-                        os.makedirs(str(out_npy_path), exist_ok=True)
-
-                        if omin_task == 'normal':
+                        out_path = output_path / f"{omin_task}" / camera
+                        os.makedirs(str(out_path), exist_ok=True)
+    
+                        if omin_task == 'normals':
                             prediction = omnidata_normal(img_fname)
-                        elif omin_task == 'depth':
+                        elif omin_task == 'depths':
                             prediction = omnidata_depth(img_fname)
-                        post_prediction(prediction, img_fname, out_vis_path, out_npy_path)
+                        post_prediction_SSF(prediction, img_fname, out_path)
+    
+    elif args.tasks == 'masks_only':
+        from mmseg.apis import inference_segmentor, init_segmentor, show_result_pyplot
+        from mmseg.core.evaluation import get_palette
+        if args.masks_config is None:
+            args.masks_config = os.path.join(args.segformer_path, 'local_configs', 'segformer', 'B5', 'segformer.b5.1024x1024.city.160k.py')
+        if args.checkpoint is None:
+            args.checkpoint = os.path.join(args.segformer_path, 'pretrained', 'segformer.b5.1024x1024.city.160k.pth')
+
+        model = init_segmentor(args.masks_config, args.checkpoint, device=args.device)
 
 if __name__ == '__main__':
 
@@ -651,12 +657,12 @@ if __name__ == '__main__':
                     help="")
     parser.add_argument("--save_path_name", type=str, default="Carla_SSF")
     # task
-    parser.add_argument("--tasks", type=str, default='omni_only',
-                    choices=['data_only', 'omni_only', 'depth_only', 'vis_points'],
+    parser.add_argument("--tasks", type=str, default='masks_only',
+                    choices=['data_only', 'omni_only', 'masks_only','depth_only', 'vis_points'],
                     help="")
     
     # omnidata options 
-    parser.add_argument("--omin_tasks", type=str, default=['normal','depth'],
+    parser.add_argument("--omin_tasks", type=str, default=['normals','depths'],
                        choices=[['normal'], ['depth'], ['normal', 'depth']],
                        help="")
     parser.add_argument("--pretrained_models", type=str, default='/opt/data/private/chenlu/AutoStudio/AutoStudio/pretrained_models/pretrained_omnidata',
@@ -667,6 +673,13 @@ if __name__ == '__main__':
     parser.add_argument("--output_path", type=str, default= '/opt/data/private/chenlu/AutoStudio/AutoStudio/data/carla',
                        help="Path to store colorized predictions in png")
     
+    # masks options
+    parser.add_argument('--segformer_path', type=str, default='/opt/data/private/chenlu/AutoStudio/AutoStudio/External/SegFormer')
+    parser.add_argument('--masks_config', help='Config file', type=str, default=None)
+    parser.add_argument('--masks_checkpoint', help='Checkpoint file', type=str, default=None)
+    parser.add_argument('--device', default='cuda:0', help='Device used for inference')
+    parser.add_argument('--palette', default='cityscapes', help='Color palette used for segmentation map')  
+
     args = parser.parse_args()
 
 
