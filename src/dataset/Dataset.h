@@ -28,9 +28,15 @@ public:
     
     void Normalize(); // deep process Image c2w
     void Set_Shift(std::vector<int>& set, const int shift_const);
+    
     Tensor GetFullC2W_Tensor(bool device);
     Tensor GetFullIntri_Tensor(bool device);
-
+    Tensor GetFullW2C_Tensor(bool device);
+    
+    Tensor GetTrainC2W_Tensor(bool device);
+    Tensor GetTrainIntri_Tensor(bool device);
+    Tensor GetTrainW2C_Tensor(bool device);
+    
     template <typename T>
     std::vector<T> GetFullC2W(bool device);
 

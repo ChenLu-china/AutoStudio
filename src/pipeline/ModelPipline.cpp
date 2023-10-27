@@ -3,3 +3,19 @@
 * Copyright (C) 
 **/
 
+#include "ModelPipline.h"
+
+namespace AutoStudio
+{
+using Tensor = torch::Tensor;
+
+AutoStudio::ModelPipline::ModelPipline(GlobalData* global_data)
+{   
+    std::cout << "Doing ModelPipline" << std::endl;
+    auto field_factor = FieldsFactory(global_data);
+    field_ = field_factor.CreateField();
+}
+
+
+
+} // namespace AutoStudio

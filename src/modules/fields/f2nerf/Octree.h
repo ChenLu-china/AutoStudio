@@ -13,6 +13,18 @@ namespace AutoStudio
 {
 using Tensor = torch::Tensor;
 
+#define N_PROS 12
+#define PersMatType Eigen::Matrix<float, 2, 4, Eigen::RowMajor>
+#define TransWetType Eigen::Matrix<float, 3, N_PROS, Eigen::RowMajor>
+
+struct alignas(32) OctreeTransInfo {
+  PersMatType w2xz[N_PROS];
+  TransWetType weight;
+  Wec3f center;
+  float dis_summary;
+};
+
+
 struct alignas(32) OctreeNode
 {
     Wec3f center_;
@@ -38,15 +50,27 @@ private:
     /* data */
 public:
     Octree(int max_depth, float bbox_side_len, float split_dist_thres, Dataset* dataset);
-    inline void AddTreeNode(int u, int depth, Wec3f center, float bbox_len);
+    
+    float DistanceSummary(const Tensor& dis);
     std::vector<int> GetVaildCams(float bbox_len, const Tensor& center);
+    inline void AddTreeNode(int u, int depth, Wec3f center, float bbox_len);
+    inline OctreeTransInfo addTreeTrans(const Tensor& rand_pts,
+                                        const Tensor& c2w, 
+                                        const Tensor& intri, 
+                                        const Tensor& center);
 
+public:   
     int max_depth_;
     Tensor c2w_, w2c_, intri_, bound_;
     float bbox_len_;
     float dist_thres_;
 
     std::vector<OctreeNode> octree_nodes_;
+    Tensor octree_nodes_gpu_;
+    
+    std::vector<OctreeTransInfo> octree_trans_; 
+    Tensor octree_trans_gpu_;
+    
     Tensor train_set_;
     std::vector<Image> images_;
 };

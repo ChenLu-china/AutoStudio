@@ -10,6 +10,8 @@ list(APPEND SRC_DATASET
         ${CUR_DIR}/fields/HashMap.cpp
         ${CUR_DIR}/fields/f2nerf/OctreeMap.cpp
         ${CUR_DIR}/fields/f2nerf/OctreeMap.cu
+        ${CUR_DIR}/fields/f2nerf/Octree.cpp
+        ${CUR_DIR}/fields/f2nerf/Octree.cu
         ${CUR_DIR}/fields/streetsurf/NGPMap.cpp
         )
 

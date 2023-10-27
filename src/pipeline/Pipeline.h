@@ -9,6 +9,7 @@
 #include <memory>
 #include <tuple>
 #include <torch/torch.h>
+#include "ModelPipline.h"
 #include "../utils/GlobalData.h"
 #include "../dataset/Dataset.h"
 
@@ -30,6 +31,7 @@ public:
   std::string task_name_, base_dir_, base_exp_dir_; 
   std::unique_ptr<GlobalData> global_data_;
   std::unique_ptr<Dataset> dataset_;
+  std::unique_ptr<ModelPipline> model_pip_;
 };
 
 } //namespace AutoStudio

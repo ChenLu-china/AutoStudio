@@ -5,6 +5,7 @@
 #include <experimental/filesystem>
 
 #include "Pipeline.h"
+
 #include "../utils/GlobalData.h"
 
 namespace fs = std::experimental::filesystem::v1;
@@ -30,6 +31,8 @@ Runner::Runner(const std::string& conf_path)
   // Dataset 
   dataset_ = std::make_unique<Dataset>(global_data_.get());
   
+  // Model
+  model_pip_ = std::make_unique<ModelPipline>(global_data_.get());
 }
 
 } //namespace AutoStudio

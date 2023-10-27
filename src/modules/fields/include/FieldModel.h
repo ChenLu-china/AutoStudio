@@ -34,7 +34,7 @@ public:
     return Tensor();
   }
 
-  GlobalData* global_data_pool_;
+  GlobalData* global_data_;
 };
 
 
