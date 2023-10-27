@@ -15,7 +15,7 @@ class NGPMap : public FieldModel
 private:
     /* data */
 public:
-    ONGPMap(GlobalData* global_data);
+    NGPMap(GlobalData* global_data);
 };
 
 
