@@ -10,7 +10,7 @@
 
 namespace AutoStudio
 {
-class ONGPMap : public FieldModel
+class NGPMap : public FieldModel
 {
 private:
     /* data */

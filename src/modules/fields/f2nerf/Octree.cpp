@@ -194,7 +194,7 @@ std::tuple<Tensor, Tensor> PCA(const Tensor& pts) {
 }
 
 OctreeTransInfo Octree::addTreeTrans(const Tensor& rand_pts,const Tensor& c2w, const Tensor& intri, const Tensor& center)
-{
+{   
     int n_virt_cams = N_PROS / 2;
     int n_cur_cams = c2w.size(0);
     int n_pts = rand_pts.size(0);

@@ -12,6 +12,9 @@ list(APPEND SRC_DATASET
         ${CUR_DIR}/fields/f2nerf/OctreeMap.cu
         ${CUR_DIR}/fields/f2nerf/Octree.cpp
         ${CUR_DIR}/fields/f2nerf/Octree.cu
-        ${CUR_DIR}/fields/streetsurf/NGPMap.cpp
+        ${CUR_DIR}/fields/streetsurf/SSFNGPMap.cpp
+        ${CUR_DIR}/fields/streetsurf/SSFNGPMap.cu
+        ${CUR_DIR}/fields/ngp/NGPMap.cpp
+        ${CUR_DIR}/fields/ngp/NGPMap.cu
         )
 

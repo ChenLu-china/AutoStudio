@@ -8,7 +8,7 @@
 namespace AutoStudio
 {
 
-ONGPMap::ONGPMap(GlobalData* global_data)
+NGPMap::NGPMap(GlobalData* global_data)
 {
     global_data_ = global_data;
     auto config = global_data_->config_["models"];

@@ -21,8 +21,8 @@ public:
     FieldsFactory(GlobalData* global_data);
     enum HashDType {
         OctreeMap,
-        NGP,
         SSFNGP,
+        NGP,
     };  
 
     std::unique_ptr<FieldModel> CreateField();

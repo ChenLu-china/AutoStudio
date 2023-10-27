@@ -5,12 +5,12 @@
 #include <torch/torch.h>
 #include "SSFNGPMap.h"
 
-#include "../../../dataset/Dataset.h"
+
 
 namespace AutoStudio
 {
 
-SNGPMap::SNGPMap(GlobalData* global_data)
+SSFNGPMap::SSFNGPMap(GlobalData* global_data)
 {
     global_data_ = global_data;
     auto config = global_data_->config_["models"];

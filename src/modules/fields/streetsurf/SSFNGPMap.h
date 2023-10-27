@@ -12,12 +12,12 @@ namespace AutoStudio
 {
 using Tensor = torch::Tensor;
 
-class SNGPMap : public FieldModel
+class SSFNGPMap : public FieldModel
 {
 private:
 
 public:
-    SNGPMap(GlobalData* global_data);
+    SSFNGPMap(GlobalData* global_data);
 };
 
 
