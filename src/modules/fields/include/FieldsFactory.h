@@ -3,8 +3,11 @@
 * Copyright (C) 
 **/
 
-#pragma once
+
+#ifndef FIELDSFACTORY_H
+#define FIELDSFACTORY_H
 #include "../include/FieldModel.h"
+
 
 namespace AutoStudio
 {
@@ -16,7 +19,7 @@ private:
 public:
 
     FieldsFactory(GlobalData* global_data);
-    enum HashDType{
+    enum HashDType {
         OctreeMap,
         NGP,
         SSFNGP,
@@ -30,3 +33,5 @@ public:
 
 
 } // namespace AutoStudio
+
+#endif // FIELDSFACTORY_H

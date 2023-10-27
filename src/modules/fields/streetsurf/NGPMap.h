@@ -4,7 +4,13 @@
 **/
 
 
+#ifndef NGPMAP_H
+#define NGPMAP_H
+
+
 namespace AutoStudio
 {
     
 } // namespace AutoStudio
+
+#endif // NGPMAP_H

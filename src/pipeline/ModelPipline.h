@@ -3,14 +3,18 @@
 * Copyright (C) 
 **/
 
-#pragma once
+
+#ifndef MODELPIPELINE_H
+#define MODELPIPELINE_H
 #include <torch/torch.h>
 #include "../utils/GlobalData.h"
 #include "../modules/common/include/BaseModel.h"
 #include "../modules/fields/include/FieldsFactory.h"
 
+
 namespace AutoStudio
 {
+
 using Tensor = torch::Tensor;
 
 class ModelPipline : public BaseModel
@@ -24,5 +28,6 @@ public:
     GlobalData* global_data_;
 };
 
-
 } // namespace AutoStudio
+
+#endif // MODELPIPELINE_H

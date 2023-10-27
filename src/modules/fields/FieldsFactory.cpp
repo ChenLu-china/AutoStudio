@@ -30,7 +30,7 @@ std::unique_ptr<FieldModel> FieldsFactory::CreateField()
     if (hash_dtype_ == 0)
     {   
 
-        return std::make_unique<OctMap>(global_data_);
+        return std::make_unique<AutoStudio::OctreeMap>(global_data_);
     }
     CHECK(false) << "No such FieldFactory";
 }

@@ -1,17 +1,22 @@
 /**
 * This file is part of auto_studio
 * Copyright (C) 
-*  @file   camera.h
+*  @file   FieldModel.h
 *  @author LuChen, 
 *  @brief 
 */
-#pragma once
+
+
+#ifndef FIELDMODEL_H
+#define FIELDMODEL_H
 #include <torch/torch.h>
 #include "../../common/include/BaseModel.h"
 #include "../../../utils/GlobalData.h"
 
+
 namespace AutoStudio
 {
+
 using Tensor = torch::Tensor;
 
 class FieldModel : public BaseModel
@@ -39,3 +44,5 @@ public:
 
 
 } // namespace AutoStudio
+
+#endif // FIELDMODEL_H
