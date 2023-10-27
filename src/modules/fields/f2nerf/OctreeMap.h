@@ -2,20 +2,26 @@
 * This file is part of autostudio
 * Copyright (C) 
 **/
-#pragma once
+
+
+#ifndef OCTREEMAP_H
+#define OCTREEMAP_H
 #include <torch/torch.h>
 #include "Octree.h"
 #include "../include/FieldModel.h"
 
+
 namespace AutoStudio
 {
 
-class OctMap : public FieldModel
+class OctreeMap : public FieldModel
 {
 public:
-    OctMap(GlobalData* global_data);
+    OctreeMap(GlobalData* global_data);
 
     std::unique_ptr<Octree> octree_;
 };
 
 } // namespace AutoStudio
+
+#endif // OCTREEMAP_H

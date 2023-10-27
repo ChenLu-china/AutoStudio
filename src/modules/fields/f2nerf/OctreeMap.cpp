@@ -9,7 +9,8 @@
 namespace AutoStudio
 {
 
-OctMap::OctMap(GlobalData* global_data){
+OctreeMap::OctreeMap(GlobalData* global_data)
+{
     global_data_ = global_data;
     auto config = global_data_->config_["models"];
     auto dataset = RE_INTER(Dataset*, global_data_->dataset_);
@@ -21,6 +22,5 @@ OctMap::OctMap(GlobalData* global_data){
     
     octree_ = std::make_unique<Octree>(max_level, bbox_side_len, split_dist_thres, dataset);
 }
-
 
 } // namespace AutoStudio

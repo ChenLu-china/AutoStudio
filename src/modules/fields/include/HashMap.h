@@ -3,7 +3,9 @@
 * Copyright (C) 
 **/
 
-#pragma once
+
+#ifndef HASHMAP_H
+#define HASHMAP_H
 
 #include <torch/torch.h>
 #include "FieldModel.h"
@@ -20,5 +22,6 @@ public:
     Hash3DVertex(GlobalData* global_data);
 };
 
-    
 } // namespace AutoStudio
+
+#endif // HASHMAP_H

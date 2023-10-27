@@ -3,7 +3,9 @@
 * Copyright (C) 
 **/
 
-#pragma once
+
+#ifndef OCTREE_H
+#define OCTREE_H
 #include <torch/torch.h>
 #include "Eigen/Eigen"
 #include "../../../Common.h"
@@ -11,6 +13,7 @@
 
 namespace AutoStudio
 {
+
 using Tensor = torch::Tensor;
 
 #define N_PROS 12
@@ -76,3 +79,5 @@ public:
 };
 
 } // namespace AutoStudio
+
+#endif // OCTREE_H

@@ -16,6 +16,7 @@
 
 namespace AutoStudio
 {
+
 using Tensor = torch::Tensor;
 
 Dataset::Dataset(GlobalData *global_data):
@@ -75,8 +76,7 @@ Dataset::Dataset(GlobalData *global_data):
 }
 
 void Dataset::Normalize()
-{ 
-  
+{
   auto poses = GetFullC2W_Tensor(true);
   const auto& config = global_data_->config_["dataset"];
   Tensor cam_pos = poses.index({Slc(), Slc(0, 3), 3}).clone();

@@ -12,6 +12,7 @@
 #include "../modules/camera_manager/Rays.h"
 #include "../modules/camera_manager/Sampler.h"
 
+
 namespace AutoStudio
 {
 
@@ -46,10 +47,6 @@ public:
     template <typename INPUT_T, typename OUTPUT_T>
     std::vector<OUTPUT_T> GetFullImage();
 
-
-
-    // template <typename INPUT_T, typename OUTPUT_T>
-    // std::vector<OUTPUT_T> Convert2DVec1D(std::vector<std::vector<INPUT_T>> vec2d);
     template <typename T>
     std::vector<T> Flatten2DVector(const std::vector<std::vector<T>>& vec2d);
     
@@ -75,4 +72,3 @@ public:
 } // namespace AutoStudio
 
 #endif // DATASET_H
-

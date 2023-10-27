@@ -3,15 +3,19 @@
 * Copyright (C) 
 **/
 
-#pragma once
+
+#ifndef BASEMODEL_H
+#define BASEMODEL_H
 #include <torch/torch.h>
 
-namespace AutoStudio{
+
+namespace AutoStudio
+{
 
 using Tensor = torch::Tensor;
 
-class BaseModel{
-
+class BaseModel
+{
 public:
     virtual int LoadStates(const std::vector<Tensor>& states, int idx);
     virtual std::vector<Tensor> States();
@@ -22,4 +26,6 @@ public:
     std::vector<BaseModel*> sub_models_;
 };
 
-} // AutoStudio
+} // namespace AutoStudio
+
+#endif // BASEMODEL_H

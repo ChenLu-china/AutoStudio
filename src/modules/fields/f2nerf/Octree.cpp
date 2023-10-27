@@ -2,18 +2,24 @@
 * This file is part of autostudio
 * Copyright (C) 
 **/
+
+
 #include <torch/torch.h>
 #include <fmt/core.h>
 #include "Octree.h"
 #include "../../../dataset/Dataset.h"
 #include "../../camera_manager/Image.h"
 
+
 namespace AutoStudio
 {
+
 using Tensor = torch::Tensor;
 
-AutoStudio::Octree::Octree(int max_depth, float bbox_side_len, float split_dist_thres,
-            Dataset* data_set)
+Octree::Octree(int max_depth,
+               float bbox_side_len,
+               float split_dist_thres,
+               Dataset* data_set)
 {
     fmt::print("[Octree::Octree]: begin \n");
     max_depth_ = max_depth;
@@ -32,7 +38,8 @@ AutoStudio::Octree::Octree(int max_depth, float bbox_side_len, float split_dist_
     AddTreeNode(0, 0, Wec3f::Zero(), bbox_side_len);
 }
 
-inline void Octree::AddTreeNode(int u, int depth, Wec3f center, float bbox_len){
+inline void Octree::AddTreeNode(int u, int depth, Wec3f center, float bbox_len)
+{
     /**
      * Implementation of octree construction renference section 3.3     
     */
@@ -46,7 +53,7 @@ inline void Octree::AddTreeNode(int u, int depth, Wec3f center, float bbox_len){
 
     for(int i = 0; i < 8; ++i) octree_nodes_[u].child_[i] = -1;
 
-    if(depth > max_depth_){
+    if (depth > max_depth_) {
         octree_nodes_[u].is_leaf_node_ = true;
         octree_nodes_[u].trans_idx_ = -1;
         return;
@@ -68,8 +75,7 @@ inline void Octree::AddTreeNode(int u, int depth, Wec3f center, float bbox_len){
     cam_dis = cam_dis.to(torch::kCPU).contiguous();
 
     std::vector<float> visi_dis;
-    for (int visi_cam : visi_cams)
-    {
+    for (int visi_cam : visi_cams) {
         float cur_dis = cam_dis[visi_cam].item<float>();
         visi_dis.push_back(cur_dis);
     }
@@ -78,10 +84,8 @@ inline void Octree::AddTreeNode(int u, int depth, Wec3f center, float bbox_len){
 
     bool exist_unaddressed_cams = ((visi_cams.size() >= N_PROS / 2) && (distance_summary < bbox_len * dist_thres_));
 
-    if(exist_unaddressed_cams)
-    {
-        for(int st = 0; st < 8; ++st)
-        {
+    if(exist_unaddressed_cams) {
+        for(int st = 0; st < 8; ++st) {
             int v = octree_nodes_.size();
             octree_nodes_.emplace_back();  //  create tree node at the end of vector<OctreeNode> different from push_back
             Wec3f offset(float((st >> 2) & 1) - .5f, float((st >> 1) & 1) - .5f, float(st & 1) - .5f);
@@ -91,20 +95,15 @@ inline void Octree::AddTreeNode(int u, int depth, Wec3f center, float bbox_len){
 
             AddTreeNode(v, depth + 1, sub_center, bbox_len * 0.5f);
         }
-    }
-    else if (visi_cams.size() < N_PROS / 2)
-    {
+    } else if (visi_cams.size() < N_PROS / 2) {
         octree_nodes_[u].is_leaf_node_ = true;
         octree_nodes_[u].trans_idx_ = -1;
-    }
-    else
-    {
+    } else {
         octree_nodes_[u].is_leaf_node_ = true;
         octree_nodes_[u].trans_idx_ = octree_trans_.size();
         Tensor visi_cam_c2w = torch::zeros({ int(visi_cams.size()), 3, 4 }, CUDAFloat);
         Tensor visi_cam_intri = torch::zeros({int(visi_cams.size()), 3, 3}, CUDAFloat);
-        for (int i = 0; i < visi_cams.size(); ++i)
-        {
+        for (int i = 0; i < visi_cams.size(); ++i) {
             visi_cam_c2w.index_put_({i}, c2w_.index({visi_cams[i]}));
             visi_cam_intri.index_put_({i}, intri_.index({visi_cams[i]}));
         }
@@ -118,8 +117,7 @@ float Octree::DistanceSummary(const Tensor& dis)
     Tensor log_dis = torch::log(dis);
     float thres = torch::quantile(log_dis, 0.25).item<float>();
     Tensor mask = (log_dis < thres).to(torch::kFloat32);
-    if (mask.sum().item<float>() < 1e-3f)
-    {
+    if (mask.sum().item<float>() < 1e-3f) {
         return std::exp(log_dis.mean().item<float>());
     }
     return std::exp(((log_dis * mask).sum() / mask.sum()).item<float>());
@@ -130,8 +128,7 @@ std::vector<int> Octree::GetVaildCams(float bbox_len, const Tensor& center)
     std::vector<Tensor> rays_o, rays_d, bounds;
     const int n_image = train_set_.sizes()[0];
 
-    for(int i = 0; i < n_image; ++i)
-    {   
+    for(int i = 0; i < n_image; ++i) {   
         auto img = images_[i];
         img.toCUDA();
         float half_w = img.intri_.index({0, 2}).item<float>();
@@ -164,7 +161,7 @@ std::vector<int> Octree::GetVaildCams(float bbox_len, const Tensor& center)
     Tensor bounds_tensor = torch::stack(bounds, 0).reshape({n_image, 2}).to(torch::kFloat32).contiguous();
     std::cout << rays_o_tensor.sizes() << std::endl;
     Tensor a = ((center - bbox_len * .5f).index({None, None}) - rays_o_tensor) / rays_d_tensor;
-    Tensor b = ((center - bbox_len * .5f).index({None, None}) - rays_o_tensor) / rays_d_tensor;
+    Tensor b = ((center + bbox_len * .5f).index({None, None}) - rays_o_tensor) / rays_d_tensor;
     a = torch::nan_to_num(a, 0.f, 1e6f, -1e6f);
     b = torch::nan_to_num(b, 0.f, 1e6f, -1e6f);
     Tensor aa = torch::maximum(a, b);
@@ -227,15 +224,15 @@ OctreeTransInfo Octree::addTreeTrans(const Tensor& rand_pts,const Tensor& c2w, c
     for (int cnt = 1; cnt < n_virt_cams && cnt < n_cur_cams; cnt++) {
         int candi = -1; float max_dis = -1.f;
         for (int i = 0; i < n_cur_cams; i++) {
-        if (cam_marks[i]) continue;
-        float cur_dis = 1e8f;
-        for (int j = 0; j < n_cur_cams; j++) {
-            if (cam_marks[j]) cur_dis = std::min(cur_dis, dis_pairs_ptr[i * n_cur_cams + j]);
-        }
-        if (cur_dis > max_dis) {
-            max_dis = cur_dis;
-            candi = i;
-        }
+            if (cam_marks[i]) continue;
+            float cur_dis = 1e8f;
+            for (int j = 0; j < n_cur_cams; j++) {
+                if (cam_marks[j]) cur_dis = std::min(cur_dis, dis_pairs_ptr[i * n_cur_cams + j]);
+            }
+            if (cur_dis > max_dis) {
+                max_dis = cur_dis;
+                candi = i;
+            }
         }
         CHECK_GE(candi, 0);
         cam_marks[candi] = 1;
@@ -272,7 +269,7 @@ OctreeTransInfo Octree::addTreeTrans(const Tensor& rand_pts,const Tensor& c2w, c
         Wec3f ret;
         x = x.to(torch::kCPU);
         for (int i = 0; i < 3; i++) {
-        ret(i) = x[i].item<float>();
+            ret(i) = x[i].item<float>();
         }
         return ret;
     };
@@ -280,9 +277,9 @@ OctreeTransInfo Octree::addTreeTrans(const Tensor& rand_pts,const Tensor& c2w, c
     auto ToTorchMat33 = [](Watrix33f x) {
         Tensor ret = torch::zeros({3, 3}, CPUFloat);
         for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            ret.index_put_({i, j}, x(i, j));
-        }
+            for (int j = 0; j < 3; j++) {
+                ret.index_put_({i, j}, x(i, j));
+            }
         }
         return ret.to(torch::kCUDA);
     };
@@ -295,7 +292,7 @@ OctreeTransInfo Octree::addTreeTrans(const Tensor& rand_pts,const Tensor& c2w, c
         float sin_val = crossed.norm();
         float angle = std::asin(sin_val);
         if (cos_val < 0.f) {
-        angle = M_PI - angle;
+            angle = M_PI - angle;
         }
         crossed = crossed.normalized();
         Watrix33f rot_mat;
