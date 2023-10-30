@@ -36,6 +36,34 @@ Octree::Octree(int max_depth,
     octree_nodes_.push_back(root);
 
     AddTreeNode(0, 0, Wec3f::Zero(), bbox_side_len);
+
+    // Copy to GPU
+    octree_nodes_gpu_ = torch::from_blob(octree_nodes_.data(), 
+                                        {int(octree_nodes_.size() * sizeof(OctreeNode))}, 
+                                        CPUUInt8).to(torch::kCUDA).contiguous();
+    
+    tree_weight_stats_ = torch::full({ int(octree_nodes_.size()) }, INIT_NODE_STAT, CUDAInt);
+    tree_alpha_stats_ = torch::full({int(tree_nodes_.size()) }, INIT_NODE_STAT, CUDAInt);
+
+    tree_visit_cnt_ = torch::zeros({ int(tree_nodes_.size()) }, CUDAInt);
+
+    octree_trans_gpu_ = torch::from_blob(octree_trans_.data(),
+                                        { int(octree_trans_.size() * sizeof(OctreeTransInfo)) },
+                                        CPUUInt8).to(torch::kCUDA).contiguous();
+
+    // TODO: Maybe list some other search order functions 
+    // Construct octree search order ------ Z-Order
+    std::vector<int> search_order;
+    for (int st = 0; st < 8; st++) {
+        auto cmp = [st](int a, int b) {
+        int bt = ((a ^ b) & -(a ^ b));
+        return (a & bt) ^ (st & bt);
+        };
+
+        for (int i = 0; i < 8; i++) search_order.push_back(i);
+        std::sort(search_order.begin() + st * 8, search_order.begin() + (st + 1) * 8, cmp);
+    }
+    node_search_order_ = torch::from_blob(search_order.data(), { 8 * 8 }, CPUInt).to(torch::kUInt8).to(torch::kCUDA).contiguous();
 }
 
 inline void Octree::AddTreeNode(int u, int depth, Wec3f center, float bbox_len)

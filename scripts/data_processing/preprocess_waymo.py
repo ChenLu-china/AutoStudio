@@ -277,7 +277,7 @@ if __name__ == '__main__':
                        help="")
     
     # task
-    parser.add_argument("--tasks", type=str, default='omni_only',
+    parser.add_argument("--tasks", type=str, default='data_only',
                     choices=['data_only', 'omni_only', 'depth_only', 'vis_points'],
                     help="")
     # sky segmentation option

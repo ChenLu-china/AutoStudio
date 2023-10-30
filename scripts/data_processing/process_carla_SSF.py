@@ -68,6 +68,7 @@ cam_infos = {
     "rightback_100": {"fov":100, "x": 1.3, "y": 1.1, "z": 1.2, "yaw": 133.0}  
 }
 
+world_offset = np.zeros([3,])
 
 def create_meshgrid(
     height: int,
@@ -332,6 +333,10 @@ def get_tf_cams(c2ws, target_radius=1.):
     translate = -center
     scale = target_radius / radius
 
+    # using SSF world offset for translation 
+    translate = -c2ws[0, :3, 3]
+    global world_offset 
+    world_offset = -translate
     return translate, scale
 
 def normalize_cam_dict(c2ws, target_radius=1., in_geometry_file=None, out_geometry_file=None):
@@ -356,7 +361,7 @@ def normalize_cam_dict(c2ws, target_radius=1., in_geometry_file=None, out_geomet
     def transform_pose(c2w, translate, scale):
         # C2W = np.linalg.inv(W2C)
         cam_center = c2w[:3, 3]
-        cam_center = (cam_center + translate) # * scale
+        cam_center = (cam_center + translate) # * scale  not do rescale
         c2w[:3, 3] = cam_center
         return c2w # np.linalg.inv(C2W)
     
@@ -554,6 +559,8 @@ def idx_to_img_filename(frame_index):
 def main(args):
     
     if args.tasks == 'data_only':
+        scene_id = args.scene_name
+
         dest = Path(args.data_dir) / args.scene_name
         dest.mkdir(exist_ok=True)
 
@@ -564,10 +571,11 @@ def main(args):
         os.makedirs(str(rgb_dest), exist_ok=True)
         scenario_fpath = output_path / "scenario.pt"
         
+        scene_objects = dict()
         scene_observers = dict()
 
         for camName in args.cameras:
-            cam_dest = rgb_dest / f"cam_{camName}"
+            cam_dest = rgb_dest / f"camera_{camName}"
             os.makedirs(str(cam_dest), exist_ok=True)
             
             h, w = args.img_size
@@ -593,11 +601,20 @@ def main(args):
                 intri = intrinsics[i]
                 scene_observers[str_]['n_frames'] += 1
                 scene_observers[str_]['data']['hw'].append((h, w))
-                scene_observers[str_]['data']['intr'].append(intri)
-                scene_observers[str_]['data']['c2w'].append(c2w)
-            
+                scene_observers[str_]['data']['intr'].append(intri.numpy())
+                scene_observers[str_]['data']['c2w'].append(c2w.numpy())
+                scene_observers[str_]['data']['global_frame_ind'].append(i)
             # create_validation_set(save_path, 0.1)
+        
+        # world_offset = poses[0].numpy().reshape(4, 4)[:3, 3]
+        scene_metas = dict(world_offset=world_offset)
+        # scene_metas['dynamic_stats'] = None
+        scene_metas['n_frames'] = i + 1
+
         scenario = dict()
+        scenario['scene_id'] = scene_id
+        scenario['metas'] = scene_metas
+        scenario['objects'] = scene_objects
         scenario['observers'] = scene_observers
         with open(scenario_fpath, 'wb') as f:
             pickle.dump(scenario, f)
@@ -608,7 +625,7 @@ def main(args):
         omnidata_normal = OmnidataModel('normal', args.pretrained_models, device="cuda:0")
         omnidata_depth = OmnidataModel('depth', args.pretrained_models, device="cuda:0")
 
-        cameras = ["cam_" + camera for camera in args.cameras]
+        cameras = ["camera_" + camera for camera in args.cameras]
 
         output_path = Path(args.output_path) / f"preprocessed" / args.scene_name
 
@@ -657,7 +674,7 @@ if __name__ == '__main__':
                     help="")
     parser.add_argument("--save_path_name", type=str, default="Carla_SSF")
     # task
-    parser.add_argument("--tasks", type=str, default='masks_only',
+    parser.add_argument("--tasks", type=str, default='omni_only',
                     choices=['data_only', 'omni_only', 'masks_only','depth_only', 'vis_points'],
                     help="")
     

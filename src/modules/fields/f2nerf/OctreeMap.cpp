@@ -21,6 +21,7 @@ OctreeMap::OctreeMap(GlobalData* global_data)
     float bbox_side_len = (1 << (bbox_levels - 1));
     
     octree_ = std::make_unique<Octree>(max_level, bbox_side_len, split_dist_thres, dataset);
+    
 }
 
 } // namespace AutoStudio

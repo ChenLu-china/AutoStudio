@@ -15,7 +15,7 @@ namespace AutoStudio
 {
 
 using Tensor = torch::Tensor;
-
+#define INIT_NODE_STAT 1000
 #define N_PROS 12
 #define PersMatType Eigen::Matrix<float, 2, 4, Eigen::RowMajor>
 #define TransWetType Eigen::Matrix<float, 3, N_PROS, Eigen::RowMajor>
@@ -74,6 +74,8 @@ public:
     std::vector<OctreeTransInfo> octree_trans_; 
     Tensor octree_trans_gpu_;
     
+    Tensor tree_weight_stats_, tree_visit_cnt_;
+    Tensor tree_alpha_stats_, node_search_order_;
     Tensor train_set_;
     std::vector<Image> images_;
 };
