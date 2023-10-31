@@ -2,7 +2,9 @@
 * This file is part of autostudio
 * Copyright (C) 
 **/
-#pragma once
+#ifndef NGPMAP_H
+#define NGPMAP_H
+
 #include <torch/torch.h>
 #include "../../../Common.h"
 #include "../include/FieldModel.h"
@@ -20,3 +22,5 @@ public:
 
 
 } // namespace AutoStudio
+
+#endif // NGPMAP_H

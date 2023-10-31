@@ -56,12 +56,16 @@ public:
     
     float DistanceSummary(const Tensor& dis);
     std::vector<int> GetVaildCams(float bbox_len, const Tensor& center);
+    
+    inline void AddTreeEdges();
     inline void AddTreeNode(int u, int depth, Wec3f center, float bbox_len);
-    inline OctreeTransInfo addTreeTrans(const Tensor& rand_pts,
+    inline OctreeTransInfo AddTreeTrans(const Tensor& rand_pts,
                                         const Tensor& c2w, 
                                         const Tensor& intri, 
                                         const Tensor& center);
-
+    void ProcOctree(bool compact, bool subdivide, bool brute_force);
+    void MarkInvisibleNodes();
+    
 public:   
     int max_depth_;
     Tensor c2w_, w2c_, intri_, bound_;
@@ -74,6 +78,9 @@ public:
     std::vector<OctreeTransInfo> octree_trans_; 
     Tensor octree_trans_gpu_;
     
+    std::vector<OctreeEdge> octree_edges_;
+    Tensor octree_edges_gpu_;
+
     Tensor tree_weight_stats_, tree_visit_cnt_;
     Tensor tree_alpha_stats_, node_search_order_;
     Tensor train_set_;

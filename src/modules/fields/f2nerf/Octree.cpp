@@ -37,18 +37,24 @@ Octree::Octree(int max_depth,
 
     AddTreeNode(0, 0, Wec3f::Zero(), bbox_side_len);
 
+    AddTreeEdges();
+
     // Copy to GPU
     octree_nodes_gpu_ = torch::from_blob(octree_nodes_.data(), 
                                         {int(octree_nodes_.size() * sizeof(OctreeNode))}, 
                                         CPUUInt8).to(torch::kCUDA).contiguous();
     
     tree_weight_stats_ = torch::full({ int(octree_nodes_.size()) }, INIT_NODE_STAT, CUDAInt);
-    tree_alpha_stats_ = torch::full({int(tree_nodes_.size()) }, INIT_NODE_STAT, CUDAInt);
+    tree_alpha_stats_ = torch::full({int(octree_nodes_.size()) }, INIT_NODE_STAT, CUDAInt);
 
-    tree_visit_cnt_ = torch::zeros({ int(tree_nodes_.size()) }, CUDAInt);
+    tree_visit_cnt_ = torch::zeros({ int(octree_nodes_.size()) }, CUDAInt);
 
     octree_trans_gpu_ = torch::from_blob(octree_trans_.data(),
                                         { int(octree_trans_.size() * sizeof(OctreeTransInfo)) },
+                                        CPUUInt8).to(torch::kCUDA).contiguous();
+
+    octree_edges_gpu_ = torch::from_blob(octree_edges_.data(),
+                                        { int(octree_edges_.size() * sizeof(OctreeEdge))},
                                         CPUUInt8).to(torch::kCUDA).contiguous();
 
     // TODO: Maybe list some other search order functions 
@@ -135,7 +141,7 @@ inline void Octree::AddTreeNode(int u, int depth, Wec3f center, float bbox_len)
             visi_cam_c2w.index_put_({i}, c2w_.index({visi_cams[i]}));
             visi_cam_intri.index_put_({i}, intri_.index({visi_cams[i]}));
         }
-        octree_trans_.push_back(addTreeTrans(rand_pts, visi_cam_c2w, visi_cam_intri, center_hash)); // calculate warp matrix reference supplementray A.2 
+        octree_trans_.push_back(AddTreeTrans(rand_pts, visi_cam_c2w, visi_cam_intri, center_hash)); // calculate warp matrix reference supplementray A.2 
     }
 }
 
@@ -221,7 +227,7 @@ std::tuple<Tensor, Tensor> PCA(const Tensor& pts) {
   return { L, V };
 }
 
-OctreeTransInfo Octree::addTreeTrans(const Tensor& rand_pts,const Tensor& c2w, const Tensor& intri, const Tensor& center)
+OctreeTransInfo Octree::AddTreeTrans(const Tensor& rand_pts,const Tensor& c2w, const Tensor& intri, const Tensor& center)
 {   
     int n_virt_cams = N_PROS / 2;
     int n_cur_cams = c2w.size(0);
@@ -394,6 +400,268 @@ OctreeTransInfo Octree::addTreeTrans(const Tensor& rand_pts,const Tensor& c2w, c
     }
     ret.dis_summary = dis_summary;
     return ret;
+}
+
+
+inline void Octree::AddTreeEdges()
+{
+    std::cout << "Octree::AddTreeEdges" << std::endl;
+
+    int n_nodes = octree_nodes_.size();
+    auto is_inside = [](const OctreeNode& node, const Wec3f& pt) -> bool{
+        Wec3f bias = (pt - node.center_) / node.extend_len_ * 2.f;
+        return bias.cwiseAbs().maxCoeff() < (1.f + 1e-4f);
+    };
+
+    for (int a = 0; a < n_nodes; ++a){
+        if (octree_nodes_[a].trans_idx_ < 0){ continue; }
+        for (int b = a + 1; b < n_nodes; ++b){
+            if (octree_nodes_[b].trans_idx_ < 0) { continue; }
+            int u = a, v = b;
+            int t_a = octree_nodes_[a].trans_idx_;
+            int t_b = octree_nodes_[b].trans_idx_;
+
+            if (octree_nodes_[u].extend_len_ > octree_nodes_[v].extend_len_){
+                std::swap(u, v);
+            }
+
+            float len_u = octree_nodes_[u].extend_len_ * .5f;
+            const Wec3f& ct_u = octree_nodes_[u].center_;
+            if (is_inside(octree_nodes_[v], ct_u + Wec3f(len_u, 0.f, 0.f))) {
+                octree_edges_.push_back({t_a, t_b, ct_u + Wec3f(len_u, 0.f, 0.f), Wec3f(0.f, len_u, 0.f), Wec3f(0.f, 0.f, len_u)});
+            }
+            if (is_inside(octree_nodes_[v], ct_u - Wec3f(len_u, 0.f, 0.f))) {
+                octree_edges_.push_back({t_a, t_b, ct_u - Wec3f(len_u, 0.f, 0.f), Wec3f(0.f, len_u, 0.f), Wec3f(0.f, 0.f, len_u)});
+            }
+            if (is_inside(octree_nodes_[v], ct_u + Wec3f(0.f, len_u, 0.f))) {
+                octree_edges_.push_back({t_a, t_b, ct_u + Wec3f(0.f, len_u, 0.f), Wec3f(len_u, 0.f, 0.f), Wec3f(0.f, 0.f, len_u)});
+            }
+            if (is_inside(octree_nodes_[v], ct_u - Wec3f(0.f, len_u, 0.f))) {
+                octree_edges_.push_back({t_a, t_b, ct_u - Wec3f(0.f, len_u, 0.f), Wec3f(len_u, 0.f, 0.f), Wec3f(0.f, 0.f, len_u)});
+            }
+            if (is_inside(octree_nodes_[v], ct_u + Wec3f(0.f, 0.f, len_u))) {
+                octree_edges_.push_back({t_a, t_b, ct_u + Wec3f(0.f, 0.f, len_u), Wec3f(len_u, 0.f, 0.f), Wec3f(0.f, len_u, 0.f)});
+            }
+            if (is_inside(octree_nodes_[v], ct_u - Wec3f(0.f, 0.f, len_u))) {
+                octree_edges_.push_back({t_a, t_b, ct_u - Wec3f(0.f, 0.f, len_u), Wec3f(len_u, 0.f, 0.f), Wec3f(0.f, len_u, 0.f)});
+            }
+        }
+    }
+    PRINT_VAL(octree_edges_.size());
+}
+
+/*--------------------------------------------------------------------------*/
+
+void Octree::ProcOctree(bool compact, bool subdivide, bool brute_force) {
+  Tensor octree_nodes_cpu = octree_nodes_gpu_.to(torch::kCPU).contiguous();
+  Tensor weight_stats_cpu = tree_weight_stats_.to(torch::kCPU).contiguous();
+  int* weight_stats_before = weight_stats_cpu.data_ptr<int>();
+  Tensor alpha_stats_cpu = tree_alpha_stats_.to(torch::kCPU).contiguous();
+  int* alpha_stats_before = alpha_stats_cpu.data_ptr<int>();
+  std::vector<OctreeNode> octree_nodes_before;
+  octree_nodes_before.resize(octree_nodes_.size());
+  std::memcpy(RE_INTER(void*, octree_nodes_before.data()), octree_nodes_cpu.data_ptr(), int(octree_nodes_.size() * sizeof(OctreeNode)));
+
+  int n_nodes_before = octree_nodes_before.size();
+  PRINT_VAL(n_nodes_before);
+
+  Tensor tree_visit_cnt_cpu = tree_visit_cnt_.to(torch::kCPU).contiguous();
+  std::vector<int> visit_cnt(n_nodes_before, 0);
+  CHECK_EQ(n_nodes_before, tree_visit_cnt_cpu.size(0));
+  std::memcpy(visit_cnt.data(), tree_visit_cnt_cpu.data_ptr<int>(), n_nodes_before * sizeof(int));
+
+  // First, compact tree nodes;
+  while (compact) {
+    for (int u = 0; u < n_nodes_before; u++) {
+      if (!octree_nodes_before[u].is_leaf_node_) {
+        CHECK_LT(octree_nodes_before[u].trans_idx_, 0);
+        continue;
+      }
+      if (octree_nodes_before[u].trans_idx_ < 0 && octree_nodes_before[u].parent_ >= 0) {
+        int v = octree_nodes_before[u].parent_;
+        for (int st = 0; st < 8; st++) {
+          if (octree_nodes_before[v].child_[st] == u) {
+            octree_nodes_before[v].child_[st] = -1;
+          }
+        }
+      }
+    }
+
+    bool update_flag = false;
+    for (int u = 1; u < n_nodes_before; u++) {  // root can not be leaf node
+      bool has_valid_childs = false;
+      for (int st = 0; st < 8; st++) {
+        if (octree_nodes_before[u].child_[st] >= 0) {
+          has_valid_childs = true;
+          break;
+        }
+      }
+      if (!has_valid_childs) {
+        if (!octree_nodes_before[u].is_leaf_node_) {
+          update_flag = true;
+          CHECK_LT(octree_nodes_before[u].trans_idx_, 0);
+        }
+        octree_nodes_before[u].is_leaf_node_ = true;
+      }
+      else {
+        CHECK(!octree_nodes_before[u].is_leaf_node_);
+      }
+    }
+
+    if (!update_flag) {
+      break;
+    }
+  }
+
+  // Compress path
+  if (compact) {
+    auto single_child_func = [&octree_nodes_before](int u) {
+      int cnt = 0;
+      int ret = -1;
+      for (int i = 0; i < 8; i++) {
+        if (octree_nodes_before[u].child_[i] >= 0) {
+          ret = i;
+          cnt++;
+        }
+      }
+      if (cnt == 1) {
+        return ret;
+      }
+      return -1;
+    };
+
+    for (int u = 0; u < n_nodes_before; u++) {
+      if (octree_nodes_before[u].is_leaf_node_ && octree_nodes_before[u].trans_idx_ < 0) { continue; }
+      int child_idx = -1;
+      int v = octree_nodes_before[u].parent_;
+      int st = -1;
+      while (v >= 0 && octree_nodes_before[v].parent_ >= 0 && (st = single_child_func(v)) >= 0) {
+        int vv = octree_nodes_before[v].parent_;
+        for (int i = 0; i < 8; i++) {
+          if (octree_nodes_before[vv].child_[i] == v) {
+            octree_nodes_before[vv].child_[i] = u;
+          }
+        }
+        octree_nodes_before[u].parent_ = vv;
+        octree_nodes_before[v].trans_idx_ = -1;
+        octree_nodes_before[v].is_leaf_node_ = true; // The flag to remove it
+        v = vv;
+      }
+    }
+  }
+
+  std::vector<int> new_idx(n_nodes_before, -1);
+  std::vector<int> inv_idx;
+  int n_nodes_compacted = 0;
+  for (int u = 0; u < n_nodes_before; u++) {
+    if (!octree_nodes_before[u].is_leaf_node_ || octree_nodes_before[u].trans_idx_ >= 0) {
+      new_idx[u] = n_nodes_compacted++;
+      inv_idx.push_back(u);
+    }
+  }
+  CHECK_EQ(new_idx[0], 0); CHECK_EQ(inv_idx[0], 0);
+
+  std::vector<OctreeNode> new_nodes;
+  std::vector<int> new_weight_stats;
+  std::vector<int> new_alpha_stats;
+
+  for (int u = 0; u < n_nodes_before; u++) {
+    if (new_idx[u] < 0) { continue; }
+    OctreeNode node = octree_nodes_before[u];
+    if (node.parent_ >= 0) {
+      node.parent_ = new_idx[node.parent_];
+      CHECK_GE(node.parent_, 0);
+    }
+
+    for (int st = 0; st < 8; st++) {
+      if (node.child_[st] >= 0) {
+        node.child_[st] = new_idx[node.child_[st]];
+        CHECK_GE(node.child_[st], 0);
+      }
+    }
+
+    new_nodes.push_back(node);
+    new_weight_stats.push_back(weight_stats_before[u]);
+    new_alpha_stats.push_back(alpha_stats_before[u]);
+  }
+
+  CHECK_EQ(new_nodes.size(), n_nodes_compacted);
+  PRINT_VAL(n_nodes_compacted);
+
+  // Sub-divide
+  if (subdivide) {
+    std::vector<OctreeNode> nodes_wp = std::move(new_nodes);
+    std::vector<int> weight_stats_wp = std::move(new_weight_stats);
+    std::vector<int> alpha_stats_wp = std::move(new_alpha_stats);
+    new_nodes.clear();
+    new_weight_stats.clear();
+    new_alpha_stats.clear();
+
+    std::function<int(int, int)> subdiv_func = [&nodes_wp, &new_nodes,
+                                                &weight_stats_wp, &new_weight_stats,
+                                                &alpha_stats_wp, &new_alpha_stats,
+                                                &visit_cnt, &inv_idx, brute_force,
+                                                &subdiv_func](int u, int pa) -> int {
+      int new_u = new_nodes.size();
+      new_nodes.push_back(nodes_wp[u]);
+      new_weight_stats.push_back(weight_stats_wp[u]);
+      new_alpha_stats.push_back(alpha_stats_wp[u]);
+      new_nodes[new_u].parent_ = pa;
+
+      if (nodes_wp[u].is_leaf_node_) {
+        CHECK(nodes_wp[u].trans_idx_ >= 0);
+        if (!brute_force && visit_cnt[inv_idx[u]] <= 4) { return new_u; }
+        for (int st = 0; st < 8; st++) {
+          Wec3f offset(float((st >> 2) & 1) - .5f, float((st >> 1) & 1) - .5f, float(st & 1) - .5f);
+          Wec3f sub_center = new_nodes[new_u].center_ + new_nodes[new_u].extend_len_ * .5f * offset;
+
+          int v = new_nodes.size();
+          new_nodes.emplace_back();
+          new_nodes[new_u].child_[st] = v;
+          new_nodes[v].center_ = sub_center;
+          new_nodes[v].extend_len_ = new_nodes[new_u].extend_len_ * .5f;
+          new_nodes[v].parent_ = new_u;
+          for (int k = 0; k < 8; k++) new_nodes[v].child_[k] = -1;
+          new_nodes[v].is_leaf_node_ = true;
+          new_nodes[v].trans_idx_ = new_nodes[new_u].trans_idx_;
+
+          new_weight_stats.push_back(new_weight_stats[new_u]);
+          new_alpha_stats.push_back(new_alpha_stats[new_u]);
+        }
+
+        new_nodes[new_u].is_leaf_node_ = false;
+        new_nodes[new_u].trans_idx_ = -1;
+        new_weight_stats[new_u] = INIT_NODE_STAT;
+        new_alpha_stats[new_u] = INIT_NODE_STAT;
+      }
+      else {
+        CHECK(nodes_wp[u].trans_idx_ < 0);
+        for (int st = 0; st < 8; st++) {
+          if (new_nodes[new_u].child_[st] >= 0) {
+            int v = subdiv_func(new_nodes[new_u].child_[st], new_u);
+            new_nodes[new_u].child_[st] = v;
+          }
+        }
+      }
+
+      return new_u;
+    };
+
+    subdiv_func(0, -1);
+  }
+
+  CHECK_EQ(new_nodes.size(), new_weight_stats.size());
+  CHECK_EQ(new_nodes.size(), new_alpha_stats.size());
+
+  octree_nodes_ = std::move(new_nodes);
+  octree_nodes_gpu_ = torch::from_blob(octree_nodes_.data(),
+                                     { int(octree_nodes_.size() * sizeof(OctreeNode)) },
+                                     CPUUInt8).to(torch::kCUDA).contiguous();
+
+  tree_weight_stats_ = torch::from_blob(new_weight_stats.data(), { int(octree_nodes_.size()) }, CPUInt).to(torch::kCUDA).contiguous();
+  tree_alpha_stats_ = torch::from_blob(new_alpha_stats.data(), {int(octree_nodes_.size()) }, CPUInt).to(torch::kCUDA).contiguous();
+  tree_visit_cnt_ = torch::zeros({ int(octree_nodes_.size()) }, CUDAInt);
+  PRINT_VAL(octree_nodes_.size());
 }
 
 } // namespace AutoStudio
