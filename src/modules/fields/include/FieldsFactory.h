@@ -31,7 +31,6 @@ public:
     GlobalData* global_data_;
 };
 
-
 } // namespace AutoStudio
 
 #endif // FIELDSFACTORY_H

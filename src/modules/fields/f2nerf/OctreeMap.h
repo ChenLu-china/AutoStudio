@@ -21,6 +21,7 @@ class OctreeMap : public FieldModel
 
 public:
     OctreeMap(GlobalData* global_data);
+    using FieldModel::GetSamples;
     SampleResultFlex GetSamples(const Tensor& rays_o, const Tensor& rays_d, const Tensor& bounds) override;
 
     void UpdateOctNodes(const SampleResultFlex& sample_result,

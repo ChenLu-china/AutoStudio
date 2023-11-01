@@ -25,7 +25,6 @@ public:
     SSFNGPMap(GlobalData* global_data);
 };
 
-
 } // namespace AutoStudio
 
 #endif // SSFNGPMAP_H
