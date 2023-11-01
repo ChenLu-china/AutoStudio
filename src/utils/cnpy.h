@@ -1,6 +1,10 @@
-//Copyright (C) 2011  Carl Rogers
-//Released under MIT License
-//license available in LICENSE file, or at http://www.opensource.org/licenses/mit-license.php
+/**
+* This file is part of autostudio
+* Copyright (C) 2011  Carl Rogers
+* Released under MIT License
+* license available in LICENSE file, or at http://www.opensource.org/licenses/mit-license.php
+**/
+
 
 #ifndef LIBCNPY_H_
 #define LIBCNPY_H_
@@ -18,6 +22,7 @@
 #include<memory>
 #include<stdint.h>
 #include<numeric>
+
 
 namespace cnpy {
 
@@ -266,4 +271,4 @@ namespace cnpy {
 
 }
 
-#endif
+#endif // LIBCNPY_H_

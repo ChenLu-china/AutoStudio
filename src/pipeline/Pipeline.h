@@ -3,6 +3,7 @@
  *  @brief 
 */
 
+
 #ifndef PIPELINE_H
 #define PIPELINE_H
 #include <string>
@@ -12,6 +13,7 @@
 #include "ModelPipline.h"
 #include "../utils/GlobalData.h"
 #include "../dataset/Dataset.h"
+
 
 namespace AutoStudio
 {

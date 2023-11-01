@@ -6,7 +6,6 @@
 *  @brief 
 */
 
-#pragma once
 
 #ifndef SAMPLER_H
 #define SAMPLER_H

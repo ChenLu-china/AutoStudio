@@ -6,10 +6,10 @@
 
 #ifndef HASHMAP_H
 #define HASHMAP_H
-
 #include <torch/torch.h>
 #include "FieldModel.h"
 #include "../../../utils/GlobalData.h"
+
 
 namespace AutoStudio
 {

@@ -2,14 +2,19 @@
 * This file is part of autostudio
 * Copyright (C) 
 **/
-#pragma once
+
+
+#ifndef SSFNGPMAP_H
+#define SSFNGPMAP_H
 #include <torch/torch.h>
 #include "../../../Common.h"
 #include "../include/FieldModel.h"
 #include "../../../dataset/Dataset.h"
 
+
 namespace AutoStudio
 {
+
 using Tensor = torch::Tensor;
 
 class SSFNGPMap : public FieldModel
@@ -22,3 +27,5 @@ public:
 
 
 } // namespace AutoStudio
+
+#endif // SSFNGPMAP_H

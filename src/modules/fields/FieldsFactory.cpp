@@ -3,12 +3,14 @@
 * Copyright (C) 
 **/
 
+
 #include <torch/torch.h> 
 #include "include/FieldsFactory.h"
 #include "ngp/NGPMap.h"
 #include "f2nerf/OctreeMap.h"
 #include "streetsurf/SSFNGPMap.h"
 #include "include/HashMap.h"
+
 
 namespace AutoStudio
 {
@@ -50,6 +52,5 @@ std::unique_ptr<FieldModel> FieldsFactory::CreateField()
     }
     CHECK(false) << "No such FieldFactory";
 }
-
 
 } // namespace AutoStudio
