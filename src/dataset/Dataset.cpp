@@ -60,7 +60,8 @@ Dataset::Dataset(GlobalData *global_data):
   }
   // Normalize camera poses under a unit
   Normalize();
-  
+  UpdateNormProc();
+
   // initial rays sampler
   auto sampler = std::make_unique<AutoStudio::Sampler>(global_data);
   
@@ -78,6 +79,7 @@ Dataset::Dataset(GlobalData *global_data):
 void Dataset::Normalize()
 {
   auto poses = GetFullC2W_Tensor(true);
+  std::cout << poses[0] << std::endl;
   const auto& config = global_data_->config_["dataset"];
   Tensor cam_pos = poses.index({Slc(), Slc(0, 3), 3}).clone();
   center_ = cam_pos.mean(0, false);
@@ -87,6 +89,8 @@ void Dataset::Normalize()
   poses.index_put_({Slc(), Slc(0, 3), 3}, cam_pos);
 
   poses_ = poses.contiguous();
+  std::cout << poses[0] << std::endl;
+
   c2w_ = poses_.clone();
   // std::cout << c2w_.sizes() << std::endl;
   w2c_ = torch::eye(4, CUDAFloat).unsqueeze(0).repeat({n_images_, 1, 1}).contiguous();
@@ -98,6 +102,20 @@ void Dataset::Normalize()
 //   Utils::TensorExportPCD(global_data_pool_->base_exp_dir_ + "/cam_pos.ply", poses_.index({Slc(), Slc(0, 3), 3}));
 }
 
+void Dataset::UpdateNormProc()
+{
+  std::cout << c2w_.sizes() << std::endl;
+  for (int i = 0; i < n_camera_; ++i) {
+    for (int j = 0; j < cameras_[i].n_images_; ++j) {
+      cameras_[i].images_[j].c2w_.index_put_({Slc(), Slc()}, c2w_[i * n_camera_ + j]);
+      cameras_[i].images_[j].w2c_ = w2c_[i * n_camera_ + j];
+      cameras_[i].images_[j].near_ /= radius_;
+      cameras_[i].images_[j].far_ /=  radius_;
+    }
+  }
+  std::cout << radius_ << std::endl;
+  std::cout << cameras_[0].images_[0].c2w_ << std::endl;
+}
 
 
 Tensor Dataset::GetFullC2W_Tensor(bool device)

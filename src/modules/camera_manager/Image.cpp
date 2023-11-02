@@ -23,10 +23,11 @@ namespace AutoStudio
 using Tensor = torch::Tensor;
 using namespace std;
 
-Image::Image(const std::string& base_dir, const float& factor, const int& img_idx)
+Image::Image(const std::string& base_dir, const std::string& img_path, const float& factor, const int& img_idx)
 { 
   std::string filename = std::string(8 - to_string(img_idx).length(), '0') + std::to_string(img_idx);
-  img_fname_ = base_dir + "/" + "images" + "/" + filename + ".png";
+  // img_fname_ = base_dir + "/" + "images" + "/" + filename + ".png";
+  img_fname_ = img_path;
   pose_fname_ = base_dir + "/" + "poses" + "/" + filename + ".npy";
   intri_fname_ = base_dir + "/"  + "intrinsic" + "/" + filename + ".npy";
   

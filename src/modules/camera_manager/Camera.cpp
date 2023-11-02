@@ -8,6 +8,7 @@
 
 #include <torch/torch.h>
 #include <fmt/core.h>
+#include <experimental/filesystem>
 #include "Camera.h"
 #include "Image.h"
 #include "../../utils/cnpy.h"
@@ -22,10 +23,25 @@ namespace AutoStudio
 {
 
 using Tensor = torch::Tensor;
+namespace fs = std::experimental::filesystem::v1;
 
 Camera::Camera(const std::string& dir, const std::string& name, float factor){
   base_dir_ = dir;
   cam_name_ = name;
+
+  // Load camera info such as dist_params and near & far
+  CHECK(fs::exists(base_dir_ + "/" + cam_name_ + "/cam_info.npy"));
+  Tensor dist_params, bounds;
+  {
+    cnpy::NpyArray arr = cnpy::npy_load(base_dir_ + "/" + cam_name_ + "/cam_info.npy");
+    auto options = torch::TensorOptions().dtype(torch::kFloat64);  // WARN: Float64 Here!!!!!
+    Tensor cam_info = torch::from_blob(arr.data<double>(), arr.num_vals, options).to(torch::kFloat32).to(torch::kCUDA);
+
+    int n_images = arr.shape[0];
+    cam_info = cam_info.reshape({n_images, 6});
+    dist_params = cam_info.slice(1, 0, 4).reshape({-1, 4}).contiguous();
+    bounds = cam_info.slice(1, 4, 6).reshape({-1, 2}).contiguous();
+  }
 
   // Load images
   { 
@@ -35,7 +51,10 @@ Camera::Camera(const std::string& dir, const std::string& name, float factor){
     std::string image_path;
     while (std::getline(image_list, image_path)) {
       std::string dir_camera = base_dir_ + "/" + cam_name_;
-      auto image = AutoStudio::Image(dir_camera, factor, n_images_);
+      auto image = AutoStudio::Image(dir_camera, image_path, factor, n_images_);
+      image.dist_param_.index_put_({Slc()}, dist_params[n_images_]);
+      image.near_ = bounds.index({n_images_, 0}).item<float>();
+      image.far_ = bounds.index({n_images_, 1}).item<float>();
       images_.push_back(image);
       n_images_ = n_images_ + 1;
     }

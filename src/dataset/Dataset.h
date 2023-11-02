@@ -28,6 +28,7 @@ public:
     Dataset(GlobalData *global_data);
     
     void Normalize(); // deep process Image c2w
+    void UpdateNormProc();
     void Set_Shift(std::vector<int>& set, const int shift_const);
     
     Tensor GetFullC2W_Tensor(bool device);

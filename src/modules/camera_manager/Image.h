@@ -19,7 +19,7 @@ class Image
 {
 public:
 
-    Image(const std::string& base_dir, const float& factor, const int& img_idx);
+    Image(const std::string& base_dir, const std::string& img_path, const float& factor, const int& img_idx);
     std::tuple<Tensor, Tensor> GenRaysTensor();
     std::tuple<Tensor, Tensor> Img2WorldRayFlex(const Tensor& ij);
 
