@@ -632,7 +632,7 @@ def main(args):
         for camera in cameras:
             print(f'================ Process {camera} camera ================')
 
-            img_path = output_path / "images" / cameras[0]
+            img_path = output_path / "images" / camera
             assert img_path.exists(), "Don't exist images file, please do data_only first"
 
             gen = (i for i in img_path.glob('*.jpg'))
@@ -670,7 +670,7 @@ if __name__ == '__main__':
     parser.add_argument("--img_size", type=int, default=[512, 768], action="append")
     parser.add_argument("--max_depth", type=float, default=100, help="max depth each image can see")
     parser.add_argument("--near_far", type=int, default=[512, 768], action="append")
-    parser.add_argument("--cameras", type=str, default=["front_120"],
+    parser.add_argument("--cameras", type=str, default=["front_120", "back_100", "leftback_100", "rightback_100", "leftfront_100", "rightfront_100"],
                     help="")
     parser.add_argument("--save_path_name", type=str, default="Carla_SSF")
     # task

@@ -50,7 +50,11 @@ std::unique_ptr<FieldModel> FieldsFactory::CreateField()
     {
         return std::make_unique<AutoStudio::NGPMap>(global_data_);
     }
-    CHECK(false) << "No such FieldFactory";
+    else{
+        CHECK(false) << "No such FieldFactory";
+        
+    }
+    return nullptr;
 }
 
 } // namespace AutoStudio

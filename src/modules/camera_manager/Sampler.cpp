@@ -59,6 +59,13 @@ Sampler* Sampler::GetInstance(std::vector<Image> images, Tensor train_set)
     }
 }
 
+std::tuple<RangeRays, Tensor> Sampler::TestRays()
+{
+    CHECK(false) << "Not implemented";
+    return {{Tensor(), Tensor(), Tensor()}, Tensor()};
+}
+
+
 std::tuple<RangeRays, Tensor> Sampler::GetTrainRays()
 {
     RangeRays rays;
@@ -102,6 +109,21 @@ std::tuple<RangeRays, Tensor> ImageSampler::GetTrainRays()
     Tensor sel_ranges = range.index({sel_indices}).to(torch::kCUDA).contiguous();
     Tensor sel_rgbs = image.img_tensor_.view({-1, 3}).index({sel_indices}).to(torch::kCUDA).contiguous();
     return {{sel_rays_o, sel_rays_d, sel_ranges}, sel_rgbs};
+}
+
+std::tuple<RangeRays, Tensor> ImageSampler::TestRays()
+{
+    std::cout << "Test rays whether correct?" << std::endl;
+    int cam_idx = train_set_.index({1}).item<int>();
+    auto image = images_[cam_idx];
+    image.toCUDA();
+    auto [rays_o, rays_d] = image.GenRaysTensor();
+
+    Tensor part_rays_o = rays_o.index({Slc(0, 10), Slc()}).to(torch::kCPU).contiguous();
+    Tensor part_rays_d = rays_d.index({Slc(0, 10), Slc()}).to(torch::kCPU).contiguous();
+    std::cout << part_rays_o << std::endl;
+    std::cout << part_rays_d << std::endl;
+    return {{Tensor(), Tensor(), Tensor()}, Tensor()};
 }
 
 /**
@@ -171,6 +193,12 @@ std::tuple<RangeRays, Tensor> RaySampler::GetTrainRays()
     Tensor sel_ranges = ranges_.index({sel_idx}).contiguous();
     
     return {{sel_rays_o, sel_rays_d, sel_ranges}, sel_rgbs};
+}
+
+std::tuple<RangeRays, Tensor> RaySampler::TestRays()
+{
+    std::cout << "Test rays whether correct?" << std::endl;
+    return {{Tensor(), Tensor(), Tensor()}, Tensor()};
 }
 
 } //namespace AutoStudio

@@ -38,6 +38,7 @@ public:
 
     Sampler(GlobalData* global_data);
     Sampler* GetInstance(std::vector<Image> images, Tensor train_set);
+    virtual std::tuple<RangeRays, Tensor> TestRays();
     virtual std::tuple<RangeRays, Tensor> GetTrainRays();
 
     enum RaySampleMode {
@@ -58,6 +59,8 @@ class ImageSampler: public Sampler
 {
 public:
     ImageSampler(GlobalData* global_data);
+
+    std::tuple<RangeRays, Tensor> TestRays() override;
     std::tuple<RangeRays, Tensor> GetTrainRays() override;
 };
 
@@ -69,6 +72,7 @@ public:
     void GenAllRays();
     void GenRandRaysIdx();
 
+    std::tuple<RangeRays, Tensor> TestRays() override;
     std::tuple<RangeRays, Tensor> GetTrainRays() override;
 
     int64_t n_rays_;
