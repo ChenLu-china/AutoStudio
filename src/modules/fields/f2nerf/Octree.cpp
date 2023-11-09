@@ -85,6 +85,10 @@ Octree::Octree(int max_depth,
   intri_ = data_set->GetTrainData_Tensor("intri", true);
   bound_ = data_set->GetTrainData_Tensor("bound", true);
   
+  if (c2w_.sizes()[0] < 800){
+    GenPixelIdx();
+  }
+
   // std::cout << max_depth_ << std::endl;
   // std::cout << bbox_len_ << std::endl;
   // std::cout << dist_thres_ << std::endl;
@@ -98,6 +102,35 @@ Octree::Octree(int max_depth,
 
   AddTreeNode(0, 0, Wec3f::Zero(), bbox_side_len);
 
+}
+
+inline void Octree::GenPixelIdx()
+{
+  std::vector<Tensor> cam_coords;
+  
+  int num = c2w_.sizes()[0];
+  for (int k = 0; k < num; ++k){
+    float half_w = intri_.index({ k, 0, 2 }).item<float>();
+    float half_h = intri_.index({ k, 1, 2 }).item<float>();
+    int res_w = 128;
+    int res_h = std::round(res_w / half_w * half_h);
+    float cx = intri_.index({ k, 0, 2 }).item<float>();
+    float cy = intri_.index({ k, 1, 2 }).item<float>();
+    float fx = intri_.index({ k, 0, 0 }).item<float>();
+    float fy = intri_.index({ k, 1, 1 }).item<float>();
+    
+    Tensor i = torch::linspace(.5f, half_h * 2.f - .5f, res_h, CUDAFloat);
+    Tensor j = torch::linspace(.5f, half_w * 2.f - .5f, res_w, CUDAFloat);
+  
+    auto ijs = torch::meshgrid({i, j}, "ij");
+    i = ijs[0].reshape({-1});
+    j = ijs[1].reshape({-1});
+    Tensor cam_coord = torch::stack({ (j - cx) / fx, -(i - cy) / fy, -torch::ones_like(j, CUDAFloat)}, -1); // [ n_pix, 3 ]
+
+    cam_coords.push_back(cam_coord);
+  }
+  Tensor cam_coords_tensor = torch::stack(cam_coords, 0).to(CUDAFloat).contiguous();
+  cam_coords_ = cam_coords_tensor;
 }
 
 float Octree::DistanceSummary(const Tensor& dis)
@@ -191,55 +224,45 @@ inline void Octree::AddTreeNode(int u, int depth, Wec3f center, float bbox_len)
   }
 }
 
-std::vector<int> Octree::GetVaildCams(float bbox_len, 
-                               const Tensor& center)
-{   
-  std::vector<Tensor> rays_o, rays_d, bounds;
-  const int n_image = train_set_.sizes()[0];
-
-  for(int i = 0; i < n_image; ++i) {
-      int img_id = train_set_.index({i}).item<int>(); 
-      auto img = images_[img_id];
-      img.toCUDA();
-      float half_w = img.intri_.index({0, 2}).item<float>();
-      float half_h = img.intri_.index({1, 2}).item<float>();
-      int res_w = 128;
-      int res_h = std::round(res_w / half_w * half_h);
-      
-      // Tensor ii = torch::linspace(0.5f, half_h * 2.f - 0.5f, res_h, CUDAFloat);
-      // Tensor jj = torch::linspace(0.5f, half_w * 2.f - 0.5f, res_w, CUDAFloat);
-      // auto ij = torch::meshgrid({ii, jj}, "ij");
-      // ii = ij[0].reshape({-1});
-      // jj = ij[1].reshape({-1});
-      // Tensor ij_ = torch::stack({ii, jj}, -1).to(torch::kCUDA).contiguous();
-      // auto [ray_o, ray_d] = img.Img2WorldRayFlex(ij_.to(torch::kInt32));
-      
-      auto [ray_o, ray_d] = img.Img2WorldRay(res_w, res_h);
-      Tensor bound = torch::stack({
-              torch::full({ 1 }, img.near_, CUDAFloat),
-              torch::full({ 1 }, img.far_,  CUDAFloat)}, 
-              -1).contiguous();
-      bound = bound.reshape({-1, 2});
-      // Tensor bound = torch::from_blob({img.near_, img.far_}, {2}, OptionFloat32);
-      img.toHost();
-      rays_o.push_back(ray_o);
-      rays_d.push_back(ray_d);
-      bounds.push_back(bound);
+std::vector<int> Octree::GetVaildCams(float bbox_len, const Tensor& center)
+{ 
+  Tensor rays_d, rays_o;
+  if (c2w_.sizes()[0] < 800){
+    rays_d = torch::matmul(c2w_.index({ Slc(), None, Slc(0, 3), Slc(0, 3) }), cam_coords_.index({Slc(), Slc(), Slc(), None})).index({"...", 0});  // [ n_cams, n_pix, 3 ]
+    rays_o = c2w_.index({Slc(), None, Slc(0, 3), 3}).repeat({1, cam_coords_.sizes()[1], 1 });
   }
-  Tensor rays_o_tensor = torch::stack(rays_o, 0).reshape({n_image, -1, 3}).to(torch::kFloat32).contiguous();
-  Tensor rays_d_tensor = torch::stack(rays_d, 0).reshape({n_image, -1, 3}).to(torch::kFloat32).contiguous();
-  Tensor bounds_tensor = torch::stack(bounds, 0).reshape({n_image, 2}).to(torch::kFloat32).contiguous();
-  // std::cout << rays_o_tensor.sizes() << std::endl;
-  Tensor a = ((center - bbox_len * .5f).index({None, None}) - rays_o_tensor) / rays_d_tensor;
-  Tensor b = ((center + bbox_len * .5f).index({None, None}) - rays_o_tensor) / rays_d_tensor;
+  else{
+    std::vector<Tensor> rays_o_vec, rays_d_vec, bound_vec;
+    const int n_image = train_set_.sizes()[0];
+    for(int i = 0; i < n_image; ++i) {
+        int img_id = train_set_.index({i}).item<int>(); 
+        auto img = images_[img_id];
+        
+        img.toCUDA();
+        float half_w = img.intri_.index({0, 2}).item<float>();
+        float half_h = img.intri_.index({1, 2}).item<float>();
+        int res_w = 128;
+        int res_h = std::round(res_w / half_w * half_h);
+        auto [ray_o, ray_d] = img.Img2WorldRay(res_w, res_h);
+        img.toHost();
+        
+        rays_o_vec.push_back(ray_o);
+        rays_d_vec.push_back(ray_d);
+    }
+    rays_d = torch::stack(rays_o_vec, 0).reshape({n_image, -1, 3}).to(torch::kFloat32).contiguous();
+    rays_o = torch::stack(rays_d_vec, 0).reshape({n_image, -1, 3}).to(torch::kFloat32).contiguous();
+  }
+  // std::cout << rays_d.index({1, Slc(0, 10), Slc()}) << std::endl;
+  Tensor a = ((center - bbox_len * .5f).index({None, None}) - rays_o) / rays_d;
+  Tensor b = ((center + bbox_len * .5f).index({None, None}) - rays_o) / rays_d;
   a = torch::nan_to_num(a, 0.f, 1e6f, -1e6f);
   b = torch::nan_to_num(b, 0.f, 1e6f, -1e6f);
   Tensor aa = torch::maximum(a, b);
   Tensor bb = torch::minimum(a, b);
   auto [ far, far_idx ] = torch::min(aa, -1);
   auto [ near, near_idx ] = torch::max(bb, -1);
-  far = torch::minimum(far, bounds_tensor.index({Slc(), None, 1}));
-  near = torch::maximum(near, bounds_tensor.index({Slc(), None, 0}));
+  far = torch::minimum(far, bound_.index({Slc(), None, 1}));
+  near = torch::maximum(near, bound_.index({Slc(), None, 0}));
   Tensor mask = (far > near).to(torch::kFloat32).sum(-1);
   Tensor good = torch::where(mask > 0)[0].to(torch::kInt32).to(torch::kCPU);
   std::vector<int> ret;

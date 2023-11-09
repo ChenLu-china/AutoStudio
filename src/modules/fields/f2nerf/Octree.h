@@ -56,7 +56,8 @@ public:
     
     float DistanceSummary(const Tensor& dis);
     std::vector<int> GetVaildCams(float bbox_len, const Tensor& center);
-    
+
+    inline void GenPixelIdx();
     inline void AddTreeEdges();
     inline void AddTreeNode(int u, int depth, Wec3f center, float bbox_len);
     inline OctreeTransInfo AddTreeTrans(const Tensor& rand_pts,
@@ -69,6 +70,7 @@ public:
 public:   
     int max_depth_;
     Tensor c2w_, w2c_, intri_, bound_;
+    Tensor cam_coords_;
     float bbox_len_;
     float dist_thres_;
 

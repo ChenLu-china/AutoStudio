@@ -7,6 +7,7 @@
 #ifndef DATASET_H
 #define DATASET_H
 #include <torch/torch.h>
+#include "../Common.h"
 #include "../utils/GlobalData.h"
 #include "../modules/camera_manager/Camera.h"
 #include "../modules/camera_manager/Rays.h"
@@ -35,8 +36,9 @@ public:
     Tensor GetFullC2W_Tensor(bool device);
     Tensor GetFullIntri_Tensor(bool device);
     Tensor GetFullW2C_Tensor(bool device);
-    
     Tensor GetTrainData_Tensor(std::string dType, bool device);
+
+    // tuple<Tensor, Tensor> GenRaysFlex(Tensor c2ws, Tensor w2cs, Tensor intris, int )
     // Tensor GetTrainC2W_Tensor(bool device);
     // Tensor GetTrainIntri_Tensor(bool device);
     // Tensor GetTrainW2C_Tensor(bool device);
