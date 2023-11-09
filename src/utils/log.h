@@ -10,6 +10,8 @@
 namespace AutoStudio
 {
 
+
+
 } // namespace AutoStudio
 
 #endif // LOG_H

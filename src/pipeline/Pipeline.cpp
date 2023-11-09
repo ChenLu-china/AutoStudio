@@ -30,7 +30,7 @@ Runner::Runner(const std::string& conf_path)
   
   // Dataset 
   dataset_ = std::make_unique<Dataset>(global_data_.get());
-  dataset_->sampler_->TestRays();
+  // dataset_->sampler_->TestRays();
   
   // Model
   model_pip_ = std::make_unique<ModelPipline>(global_data_.get());

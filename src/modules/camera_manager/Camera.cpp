@@ -25,9 +25,10 @@ namespace AutoStudio
 using Tensor = torch::Tensor;
 namespace fs = std::experimental::filesystem::v1;
 
-Camera::Camera(const std::string& dir, const std::string& name, float factor){
+Camera::Camera(const std::string& dir, const std::string& name, float factor, std::vector<float> bounds_factor){
   base_dir_ = dir;
   cam_name_ = name;
+  bounds_factor_ = bounds_factor;
 
   // Load camera info such as dist_params and near & far
   CHECK(fs::exists(base_dir_ + "/" + cam_name_ + "/cam_info.npy"));
@@ -42,7 +43,6 @@ Camera::Camera(const std::string& dir, const std::string& name, float factor){
     dist_params = cam_info.slice(1, 0, 4).reshape({-1, 4}).contiguous();
     bounds = cam_info.slice(1, 4, 6).reshape({-1, 2}).contiguous();
   }
-
   // Load images
   { 
     std::vector<string> images_fnames;
@@ -53,12 +53,12 @@ Camera::Camera(const std::string& dir, const std::string& name, float factor){
       std::string dir_camera = base_dir_ + "/" + cam_name_;
       auto image = AutoStudio::Image(dir_camera, image_path, factor, n_images_);
       image.dist_param_.index_put_({Slc()}, dist_params[n_images_]);
-      image.near_ = bounds.index({n_images_, 0}).item<float>();
-      image.far_ = bounds.index({n_images_, 1}).item<float>();
+      image.near_ = bounds.index({n_images_, 0}).item<float>() * bounds_factor_[0];
+      image.far_ = bounds.index({n_images_, 1}).item<float>() * bounds_factor_[1];
       images_.push_back(image);
       n_images_ = n_images_ + 1;
     }
-    std::cout<< images_.size()<<std::endl;
+    // std::cout<< images_.size()<<std::endl;
 
   }
 

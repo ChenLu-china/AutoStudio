@@ -25,7 +25,7 @@ class Camera{
 
 public:
   // functions
-  Camera(const std::string& base_dir, const std::string& cam_name, float factor);
+  Camera(const std::string& base_dir, const std::string& cam_name, float factor, std::vector<float> bounds_factor);
 
   // parameters
   std::string base_dir_;
@@ -37,7 +37,8 @@ public:
   // Tensor c2w_train_, w2c_train_, intrinsic_train_;
   std::vector<AutoStudio::Image> images_;
   std::vector<int> img_idx_, train_set_, test_set_, val_set_, split_info_;
-  
+  std::vector<float> bounds_factor_;
+
   Tensor poses_, c2ws_, intrinsics_, dist_params_;
 };
 

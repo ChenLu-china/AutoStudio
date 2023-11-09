@@ -21,6 +21,7 @@ public:
 
     Image(const std::string& base_dir, const std::string& img_path, const float& factor, const int& img_idx);
     std::tuple<Tensor, Tensor> GenRaysTensor();
+    std::tuple<Tensor, Tensor> Img2WorldRay(int res_w, int res_h);
     std::tuple<Tensor, Tensor> Img2WorldRayFlex(const Tensor& ij);
 
     Tensor ReadImageTensor(const std::string& image_path);

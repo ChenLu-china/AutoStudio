@@ -68,7 +68,7 @@ cam_infos = {
     "rightback_100": {"fov":100, "x": 1.3, "y": 1.1, "z": 1.2, "yaw": 133.0}  
 }
 
-world_offset = np.zeros([3,])
+world_offset = None
 
 def create_meshgrid(
     height: int,
@@ -336,7 +336,8 @@ def get_tf_cams(c2ws, target_radius=1.):
     # using SSF world offset for translation 
     translate = -c2ws[0, :3, 3]
     global world_offset 
-    world_offset = -translate
+    if world_offset is None:
+        world_offset = -translate
     return translate, scale
 
 def normalize_cam_dict(c2ws, target_radius=1., in_geometry_file=None, out_geometry_file=None):
@@ -606,7 +607,8 @@ def main(args):
                 scene_observers[str_]['data']['global_frame_ind'].append(i)
             # create_validation_set(save_path, 0.1)
         
-        # world_offset = poses[0].numpy().reshape(4, 4)[:3, 3]
+        # world_offset = poses[0].numpy().reshape(4, 4)[:3, 3]\
+        print(world_offset)
         scene_metas = dict(world_offset=world_offset)
         # scene_metas['dynamic_stats'] = None
         scene_metas['n_frames'] = i + 1

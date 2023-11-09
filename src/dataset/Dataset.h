@@ -26,6 +26,7 @@ private:
     /* data */
 public:
     Dataset(GlobalData *global_data);
+    enum class DataCode{C2W, W2C, INTRI, BOUND};
     
     void Normalize(); // deep process Image c2w
     void UpdateNormProc();
@@ -35,10 +36,12 @@ public:
     Tensor GetFullIntri_Tensor(bool device);
     Tensor GetFullW2C_Tensor(bool device);
     
-    Tensor GetTrainC2W_Tensor(bool device);
-    Tensor GetTrainIntri_Tensor(bool device);
-    Tensor GetTrainW2C_Tensor(bool device);
-    
+    Tensor GetTrainData_Tensor(std::string dType, bool device);
+    // Tensor GetTrainC2W_Tensor(bool device);
+    // Tensor GetTrainIntri_Tensor(bool device);
+    // Tensor GetTrainW2C_Tensor(bool device);
+    // Tensor GetTrainBound_Tensor(bool device);
+
     template <typename T>
     std::vector<T> GetFullC2W(bool device);
 
@@ -51,6 +54,8 @@ public:
     template <typename T>
     std::vector<T> Flatten2DVector(const std::vector<std::vector<T>>& vec2d);
     
+    DataCode DataShit(std::string dType);
+
 public:
     std::string set_name_, set_sequnceid_;
     int n_images_ = 0;

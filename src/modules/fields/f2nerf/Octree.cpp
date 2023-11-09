@@ -3,6 +3,12 @@
 * Copyright (C) 
 **/
 
+/**
+ * @brief
+ * 1. set max depth of octree
+ * 2. set max size of cube
+ * 3. 
+*/
 
 #include <torch/torch.h>
 #include <fmt/core.h>
@@ -22,15 +28,22 @@ Octree::Octree(int max_depth,
                Dataset* data_set)
 {
     fmt::print("[Octree::Octree]: begin \n");
-    max_depth_ = max_depth;
-    bbox_len_ = bbox_side_len;
+    max_depth_ = max_depth;  //
+    bbox_len_ = bbox_side_len; // 
     dist_thres_ = split_dist_thres;
+    
     train_set_ = data_set->sampler_->train_set_;
     images_ = data_set->sampler_->images_;
-    c2w_ = data_set->GetTrainC2W_Tensor(true);
-    w2c_ = data_set->GetTrainW2C_Tensor(true);
-    intri_ = data_set->GetTrainIntri_Tensor(true);
-    bound_ = data_set->GetTrainBound_Tensor(true);
+
+    c2w_ = data_set->GetTrainData_Tensor("c2w", true);
+    w2c_ = data_set->GetTrainData_Tensor("w2c", true);
+    intri_ = data_set->GetTrainData_Tensor("intri", true);
+    bound_ = data_set->GetTrainData_Tensor("bound", true);
+
+    // std::cout << c2w_.sizes() << std::endl;
+    // std::cout << w2c_.sizes() << std::endl;
+    // std::cout << intri_.sizes() << std::endl;
+    // std::cout << bound_.sizes() << std::endl;
 
     OctreeNode root;
     root.parent_ = -1;
@@ -38,6 +51,18 @@ Octree::Octree(int max_depth,
 
     AddTreeNode(0, 0, Wec3f::Zero(), bbox_side_len);
 
+}
+
+float Octree::DistanceSummary(const Tensor& dis)
+{
+  if (dis.reshape(-1).size(0) <= 0) { return 1e8f; }
+  Tensor log_dis = torch::log(dis);
+  float thres = torch::quantile(log_dis, 0.25).item<float>();
+  Tensor mask = (log_dis < thres).to(torch::kFloat32);
+  if (mask.sum().item<float>() < 1e-3f){
+    return std::exp(log_dis.mean().item<float>());
+  }
+  return std::exp(((log_dis * mask).sum() / mask.sum()).item<float>());
 }
 
 inline void Octree::AddTreeNode(int u, int depth, Wec3f center, float bbox_len)
@@ -52,6 +77,8 @@ inline void Octree::AddTreeNode(int u, int depth, Wec3f center, float bbox_len)
     octree_nodes_[u].is_leaf_node_ = false;
     octree_nodes_[u].extend_len_ = bbox_len;
     octree_nodes_[u].trans_idx_ = -1;
+    std::cout << "The Octree Node center is: " << center << std::endl;
+    std::cout << "The Octree Node extend_len is: " << bbox_len << std::endl;
 
     for(int i = 0; i < 8; ++i) octree_nodes_[u].child_[i] = -1;
 
@@ -63,14 +90,37 @@ inline void Octree::AddTreeNode(int u, int depth, Wec3f center, float bbox_len)
 
     // calculate distance from camera to hash cube ceneter
     int num_imgs = c2w_.sizes()[0];
-    std::cout << num_imgs << std::endl;
-    Tensor center_hash = torch::zeros({3}, CPUFloat);
-    std::memcpy(center_hash.data_ptr(), &center, 3 * sizeof(float));
-    center_hash = center_hash.to(torch::kCUDA);
+    Tensor hash_center = torch::zeros({3}, CPUFloat);
+    std::memcpy(hash_center.data_ptr(), &center, 3 * sizeof(float));
+    hash_center = hash_center.to(torch::kCUDA);
     
     const int n_rand_pts = 32 * 32 * 32;
-    Tensor rand_pts = (torch::rand({n_rand_pts, 3}, CUDAFloat) - .5f) * bbox_len + center_hash.unsqueeze(0);
-    auto visi_cams = GetVaildCams(bbox_len, center_hash);
+    Tensor rand_pts = (torch::rand({n_rand_pts, 3}, CUDAFloat) - .5f) * bbox_len + hash_center.unsqueeze(0);
+    auto visi_cams = GetVaildCams(bbox_len, hash_center);
+
+    std::cout << visi_cams.size() << std::endl;
+
+    Tensor cam_pos_ts = c2w_.index({Slc(), Slc(0, 3), 3}).to(torch::kCUDA).contiguous();
+    Tensor cam_dis = torch::linalg_norm(cam_pos_ts - hash_center.unsqueeze(0), 2, -1, true);
+    cam_dis = cam_dis.to(torch::kCPU).contiguous();
+
+    std::vector<float> visi_dis;
+    for(int visi_cam : visi_cams){
+      float cur_dis = cam_dis[visi_cam].item<float>();
+      visi_dis.push_back(cur_dis);
+    }
+    Tensor visi_dis_ts = torch::from_blob(visi_dis.data(), { int(visi_dis.size() )}, CPUFloat).to(torch::kCUDA);
+    float distance_summary = DistanceSummary(visi_dis_ts);
+    bool exist_unaddressed_cams = (visi_cams.size() >= N_PROS / 2) && (distance_summary < bbox_len * dist_thres_);
+
+    //subdivide the tree node
+    if (exist_unaddressed_cams){
+      for (int st = 0; st < 8; ++st){
+        int v = octree_nodes_.size();
+        octree_nodes_.emplace_back();
+        Wec3f offset(float((st >> 2) & 1) - 0.5f, flo)
+      }
+    }
 }
 
 std::vector<int> Octree::GetVaildCams(float bbox_len, 
@@ -79,22 +129,24 @@ std::vector<int> Octree::GetVaildCams(float bbox_len,
     std::vector<Tensor> rays_o, rays_d, bounds;
     const int n_image = train_set_.sizes()[0];
 
-    for(int i = 0; i < n_image; ++i) {   
-        auto img = images_[i];
+    for(int i = 0; i < n_image; ++i) {
+        int img_id = train_set_.index({i}).item<int>(); 
+        auto img = images_[img_id];
         img.toCUDA();
         float half_w = img.intri_.index({0, 2}).item<float>();
         float half_h = img.intri_.index({1, 2}).item<float>();
         int res_w = 128;
         int res_h = std::round(res_w / half_w * half_h);
         
-        Tensor ii = torch::linspace(0.f, half_w * 2.f - 1.f, res_h, CUDAFloat);
-        Tensor jj = torch::linspace(0.f, half_h * 2.f - 1.f, res_w, CUDAFloat);
-        auto ij = torch::meshgrid({ii, jj}, "ij");
-
-        ii = ij[0].reshape({-1});
-        jj = ij[1].reshape({-1});
-        Tensor ij_ = torch::stack({ii, jj}, -1).to(torch::kCUDA).contiguous();
-        auto [ray_o, ray_d] = img.Img2WorldRayFlex(ij_.to(torch::kInt32));
+        // Tensor ii = torch::linspace(0.5f, half_h * 2.f - 0.5f, res_h, CUDAFloat);
+        // Tensor jj = torch::linspace(0.5f, half_w * 2.f - 0.5f, res_w, CUDAFloat);
+        // auto ij = torch::meshgrid({ii, jj}, "ij");
+        // ii = ij[0].reshape({-1});
+        // jj = ij[1].reshape({-1});
+        // Tensor ij_ = torch::stack({ii, jj}, -1).to(torch::kCUDA).contiguous();
+        // auto [ray_o, ray_d] = img.Img2WorldRayFlex(ij_.to(torch::kInt32));
+        
+        auto [ray_o, ray_d] = img.Img2WorldRay(res_w, res_h);
         Tensor bound = torch::stack({
                 torch::full({ 1 }, img.near_, CUDAFloat),
                 torch::full({ 1 }, img.far_,  CUDAFloat)}, 
@@ -106,7 +158,6 @@ std::vector<int> Octree::GetVaildCams(float bbox_len,
         rays_d.push_back(ray_d);
         bounds.push_back(bound);
     }
-    
     Tensor rays_o_tensor = torch::stack(rays_o, 0).reshape({n_image, -1, 3}).to(torch::kFloat32).contiguous();
     Tensor rays_d_tensor = torch::stack(rays_d, 0).reshape({n_image, -1, 3}).to(torch::kFloat32).contiguous();
     Tensor bounds_tensor = torch::stack(bounds, 0).reshape({n_image, 2}).to(torch::kFloat32).contiguous();
