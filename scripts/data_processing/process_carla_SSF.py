@@ -68,7 +68,7 @@ cam_infos = {
     "rightback_100": {"fov":100, "x": 1.3, "y": 1.1, "z": 1.2, "yaw": 133.0}  
 }
 
-world_offset = None
+world_offset = np.array([  1.21562983, -44.79893401, -20.17243147])
 
 def create_meshgrid(
     height: int,
@@ -558,109 +558,109 @@ def idx_to_img_filename(frame_index):
 
 
 def main(args):
-    
-    if args.tasks == 'data_only':
-        scene_id = args.scene_name
+    for task in args.tasks:
+        if task == 'data_only':
+            scene_id = args.scene_name
 
-        dest = Path(args.data_dir) / args.scene_name
-        dest.mkdir(exist_ok=True)
+            dest = Path(args.data_dir) / args.scene_name
+            dest.mkdir(exist_ok=True)
 
-        
-        output_path = Path(args.output_path) / f"preprocessed" / args.scene_name
-        
-        rgb_dest = output_path / "images"
-        os.makedirs(str(rgb_dest), exist_ok=True)
-        scenario_fpath = output_path / "scenario.pt"
-        
-        scene_objects = dict()
-        scene_observers = dict()
-
-        for camName in args.cameras:
-            cam_dest = rgb_dest / f"camera_{camName}"
-            os.makedirs(str(cam_dest), exist_ok=True)
             
-            h, w = args.img_size
+            output_path = Path(args.output_path) / f"preprocessed" / args.scene_name
+            
+            rgb_dest = output_path / "images"
+            os.makedirs(str(rgb_dest), exist_ok=True)
+            scenario_fpath = output_path / "scenario.pt"
+            
+            scene_objects = dict()
+            scene_observers = dict()
 
-            rgbs, poses, intrinsics = read_mate(dest, camName, args.img_size, args.max_depth)
-            str_ = f"camera_{camName}"
-            if str_ not in scene_observers:
-                scene_observers[str_] = dict(
-                    class_name='Camera', n_frames=0, 
-                    data=dict(hw=[], intr=[], c2w=[], global_frame_ind=[])
-                )
-            for i in range(len(rgbs)):
+            for camName in args.cameras:
+                cam_dest = rgb_dest / f"camera_{camName}"
+                os.makedirs(str(cam_dest), exist_ok=True)
                 
-                #-------- Process observation groundtruths
-                img = rgbs[i].reshape(args.img_size + [3])
-                img_name = idx_to_img_filename(i)
-                img_path = cam_dest / img_name
-                img = Image.fromarray((img.numpy() * 255).astype(np.uint8)).save(str(img_path))
+                h, w = args.img_size
 
-                #------------------------------------------------------
-                #------------------     Cameras      ------------------
-                c2w = poses[i]
-                intri = intrinsics[i]
-                scene_observers[str_]['n_frames'] += 1
-                scene_observers[str_]['data']['hw'].append((h, w))
-                scene_observers[str_]['data']['intr'].append(intri.numpy())
-                scene_observers[str_]['data']['c2w'].append(c2w.numpy())
-                scene_observers[str_]['data']['global_frame_ind'].append(i)
-            # create_validation_set(save_path, 0.1)
-        
-        # world_offset = poses[0].numpy().reshape(4, 4)[:3, 3]\
-        print(world_offset)
-        scene_metas = dict(world_offset=world_offset)
-        # scene_metas['dynamic_stats'] = None
-        scene_metas['n_frames'] = i + 1
+                rgbs, poses, intrinsics = read_mate(dest, camName, args.img_size, args.max_depth)
+                str_ = f"camera_{camName}"
+                if str_ not in scene_observers:
+                    scene_observers[str_] = dict(
+                        class_name='Camera', n_frames=0, 
+                        data=dict(hw=[], intr=[], c2w=[], global_frame_ind=[])
+                    )
+                for i in range(len(rgbs)):
+                    
+                    #-------- Process observation groundtruths
+                    img = rgbs[i].reshape(args.img_size + [3])
+                    img_name = idx_to_img_filename(i)
+                    img_path = cam_dest / img_name
+                    img = Image.fromarray((img.numpy() * 255).astype(np.uint8)).save(str(img_path))
 
-        scenario = dict()
-        scenario['scene_id'] = scene_id
-        scenario['metas'] = scene_metas
-        scenario['objects'] = scene_objects
-        scenario['observers'] = scene_observers
-        with open(scenario_fpath, 'wb') as f:
-            pickle.dump(scenario, f)
-            print(f"=> scenario saved to {scenario_fpath}")
-    
-    elif args.tasks == 'omni_only':  
-        # do this after data only
-        omnidata_normal = OmnidataModel('normal', args.pretrained_models, device="cuda:0")
-        omnidata_depth = OmnidataModel('depth', args.pretrained_models, device="cuda:0")
-
-        cameras = ["camera_" + camera for camera in args.cameras]
-
-        output_path = Path(args.output_path) / f"preprocessed" / args.scene_name
-
-        for camera in cameras:
-            print(f'================ Process {camera} camera ================')
-
-            img_path = output_path / "images" / camera
-            assert img_path.exists(), "Don't exist images file, please do data_only first"
-
-            gen = (i for i in img_path.glob('*.jpg'))
-            fnames = sorted(Counter(gen))
+                    #------------------------------------------------------
+                    #------------------     Cameras      ------------------
+                    c2w = poses[i]
+                    intri = intrinsics[i]
+                    scene_observers[str_]['n_frames'] += 1
+                    scene_observers[str_]['data']['hw'].append((h, w))
+                    scene_observers[str_]['data']['intr'].append(intri.numpy())
+                    scene_observers[str_]['data']['c2w'].append(c2w.numpy())
+                    scene_observers[str_]['data']['global_frame_ind'].append(i)
+                # create_validation_set(save_path, 0.1)
             
-            for i, img_fname in tqdm(enumerate(fnames)):
-                if args.omin_tasks is not None and Path(args.pretrained_models).exists():
-                    for omin_task in args.omin_tasks:
-                        out_path = output_path / f"{omin_task}" / camera
-                        os.makedirs(str(out_path), exist_ok=True)
-    
-                        if omin_task == 'normals':
-                            prediction = omnidata_normal(img_fname)
-                        elif omin_task == 'depths':
-                            prediction = omnidata_depth(img_fname)
-                        post_prediction_SSF(prediction, img_fname, out_path)
-    
-    elif args.tasks == 'masks_only':
-        from mmseg.apis import inference_segmentor, init_segmentor, show_result_pyplot
-        from mmseg.core.evaluation import get_palette
-        if args.masks_config is None:
-            args.masks_config = os.path.join(args.segformer_path, 'local_configs', 'segformer', 'B5', 'segformer.b5.1024x1024.city.160k.py')
-        if args.checkpoint is None:
-            args.checkpoint = os.path.join(args.segformer_path, 'pretrained', 'segformer.b5.1024x1024.city.160k.pth')
+            # world_offset = poses[0].numpy().reshape(4, 4)[:3, 3]\
+            print(world_offset)
+            scene_metas = dict(world_offset=world_offset)
+            # scene_metas['dynamic_stats'] = None
+            scene_metas['n_frames'] = i + 1
 
-        model = init_segmentor(args.masks_config, args.checkpoint, device=args.device)
+            scenario = dict()
+            scenario['scene_id'] = scene_id
+            scenario['metas'] = scene_metas
+            scenario['objects'] = scene_objects
+            scenario['observers'] = scene_observers
+            with open(scenario_fpath, 'wb') as f:
+                pickle.dump(scenario, f)
+                print(f"=> scenario saved to {scenario_fpath}")
+        
+        elif task == 'omni_only':  
+            # do this after data only
+            omnidata_normal = OmnidataModel('normal', args.pretrained_models, device="cuda:0")
+            omnidata_depth = OmnidataModel('depth', args.pretrained_models, device="cuda:0")
+
+            cameras = ["camera_" + camera for camera in args.cameras]
+
+            output_path = Path(args.output_path) / f"preprocessed" / args.scene_name
+
+            for camera in cameras:
+                print(f'================ Process {camera} camera ================')
+
+                img_path = output_path / "images" / camera
+                assert img_path.exists(), "Don't exist images file, please do data_only first"
+
+                gen = (i for i in img_path.glob('*.jpg'))
+                fnames = sorted(Counter(gen))
+                
+                for i, img_fname in tqdm(enumerate(fnames)):
+                    if args.omin_tasks is not None and Path(args.pretrained_models).exists():
+                        for omin_task in args.omin_tasks:
+                            out_path = output_path / f"{omin_task}" / camera
+                            os.makedirs(str(out_path), exist_ok=True)
+        
+                            if omin_task == 'normals':
+                                prediction = omnidata_normal(img_fname)
+                            elif omin_task == 'depths':
+                                prediction = omnidata_depth(img_fname)
+                            post_prediction_SSF(prediction, img_fname, out_path)
+        
+        elif task == 'masks_only':
+            from mmseg.apis import inference_segmentor, init_segmentor, show_result_pyplot
+            from mmseg.core.evaluation import get_palette
+            if args.masks_config is None:
+                args.masks_config = os.path.join(args.segformer_path, 'local_configs', 'segformer', 'B5', 'segformer.b5.1024x1024.city.160k.py')
+            if args.checkpoint is None:
+                args.checkpoint = os.path.join(args.segformer_path, 'pretrained', 'segformer.b5.1024x1024.city.160k.pth')
+
+            model = init_segmentor(args.masks_config, args.checkpoint, device=args.device)
 
 if __name__ == '__main__':
 
@@ -676,8 +676,8 @@ if __name__ == '__main__':
                     help="")
     parser.add_argument("--save_path_name", type=str, default="Carla_SSF")
     # task
-    parser.add_argument("--tasks", type=str, default='omni_only',
-                    choices=['data_only', 'omni_only', 'masks_only','depth_only', 'vis_points'],
+    parser.add_argument("--tasks", type=str, default=['omni_only'],
+                    choices=[['data_only'], ['omni_only'], ['masks_only'],['depth_only'], ['vis_points']],
                     help="")
     
     # omnidata options 

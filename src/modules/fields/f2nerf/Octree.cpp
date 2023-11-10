@@ -220,7 +220,7 @@ inline void Octree::AddTreeNode(int u, int depth, Wec3f center, float bbox_len)
     for (int i = 0; i < visi_cams.size(); i++) {
       visi_cam_c2w.index_put_({i}, c2w_.index({ visi_cams[i] }));
     }
-    // octree_trans_.push_back(AddTreeTrans(rand_pts, visi_cam_c2w, intri_[0], hash_center));
+    octree_trans_.push_back(AddTreeTrans(rand_pts, visi_cam_c2w, intri_[0], hash_center));
   }
 }
 
@@ -297,7 +297,7 @@ OctreeTransInfo Octree::AddTreeTrans(const Tensor& rand_pts,const Tensor& c2w, c
 
   // First step: align distance, find good cameras
   Tensor dis = torch::linalg_norm(cam_pos - center.unsqueeze(0), 2, -1, false);
-  float dis_summary = DistanceSummary(dis);
+  float dis_summary = DistanceSummary(dis); // r is empirically set as the mean distance to the region center among the 1/4 nearest visible cameras
 
   Tensor rel_cam_pos, normed_cam_pos;
 

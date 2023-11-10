@@ -128,6 +128,7 @@ Dataset::DataCode Dataset::DataShit(std::string dType)
   if(dType == "w2c") return DataCode::W2C;
   if(dType == "intri") return DataCode::INTRI;
   if(dType == "bound") return DataCode::BOUND;
+  return DataCode::NONE;
 }
 
 Tensor Dataset::GetTrainData_Tensor(std::string dType, bool device)
@@ -253,69 +254,6 @@ Tensor Dataset::GetFullIntri_Tensor(bool device)
   return intris_tensor;
 }
 
-// Tensor Dataset::GetTrainC2W_Tensor(bool device)
-// {
-//   std::vector<Tensor> c2ws;
-//   for (int i = 0; i < n_camera_; ++i) {
-//     auto camera = cameras_[i];
-//     auto images = camera.images_;
-//     for (int j = 0; j < camera.n_images_; ++j) {
-//       c2ws.push_back(images[j].c2w_);
-//     }
-//   }
-  
-//   Tensor c2ws_tensor = torch::stack(c2ws, 0).reshape({-1, 3, 4});
-//   Tensor train_c2ws  = c2ws_tensor.index({train_set_}).contiguous();
-//   if (device == 1) train_c2ws = train_c2ws.to(torch::kFloat32).to(torch::kCUDA).contiguous();
-//   else train_c2ws = train_c2ws.to(torch::kFloat32).contiguous();
-//   return train_c2ws;
-// }
-
-// Tensor Dataset::GetTrainW2C_Tensor(bool device)
-// {
-//   std::vector<Tensor> w2cs;
-//   for (int i = 0; i < n_camera_; ++i) {
-//     auto camera = cameras_[i];
-//     auto images = camera.images_;
-//     for (int j = 0; j < camera.n_images_; ++j) {
-//       Tensor w2c = torch::eye(4, CUDAFloat).contiguous();
-//       w2c.index_put_({Slc(0, 3), Slc()}, images[j].c2w_.clone());
-//       w2c = torch::linalg_inv(w2c);
-//       w2c = w2c.index({Slc(0, 3), Slc()}).contiguous();
-//       w2cs.push_back(w2c);
-//     }
-//   }
-//   Tensor w2cs_tensor = torch::stack(w2cs, 0).reshape({-1, 3, 4});
-//   Tensor train_w2cs = w2cs_tensor.index({train_set_}).contiguous();
-//   if (device == 1) train_w2cs = train_w2cs.to(torch::kFloat32).to(torch::kCUDA).contiguous();
-//   else train_w2cs = train_w2cs.to(torch::kFloat32).contiguous();
-//   return train_w2cs;
-// }
-
-
-// Tensor Dataset::GetTrainIntri_Tensor(bool device)
-// {
-//   std::vector<Tensor> intris;
-//   for (int i = 0; i < n_camera_; ++i) {
-//     auto camera = cameras_[i];
-//     auto images = camera.images_;
-//     for (int j = 0; j < camera.n_images_; ++j) {
-//       intris.push_back(images[j].intri_);
-//     }
-//   }
-//   Tensor intris_tensor = torch::stack(intris, 0).reshape({-1, 3, 3});
-//   Tensor train_intris = intris_tensor.index({train_set_}).contiguous();
-//   if (device == 1) train_intris = train_intris.to(torch::kFloat32).to(torch::kCUDA).contiguous();
-//   else train_intris = train_intris.to(torch::kFloat32).contiguous();
-//   return train_intris;
-// }
-
-// Tensor Dataset::GetTrainBound_Tensor(bool device)
-// {
-//   std::vector<Tensor> bounds;
-//   for (int )
-// }
-
 template <typename T>
 std::vector<T> Dataset::GetFullC2W(bool device)
 {
@@ -360,35 +298,6 @@ std::vector<OUTPUT_T> Dataset::GetFullImage()
   return all_images;
 }
 
-
-// Tensor Dataset::GetFullPose_Tensor(bool device)
-// {
-//   std::vector<Tensor> c2ws;
-//   for (int i = 0; i < n_camera_; ++i) {
-//     auto camera = cameras_[i];
-//     auto images = camera.images_;
-//     for (int j = 0; j < camera.n_images_; ++j) {
-//       c2ws.push_back(images[j].c2w_);
-//     }
-//   }
-  
-//   Tensor c2ws_tensor = torch::stack(c2ws, 0).reshape({-1, 3, 4});
-//   c2ws_tensor = c2ws_tensor.to(torch::kFloat32).to(torch::kCUDA).contiguous();
-//   return c2ws_tensor;
-// }
-
-
-// template <typename INPUT_T, typename OUTPUT_T>
-// std::vector<OUTPUT_T> Dataset::Convert2DVec1D(std::vector<std::vector<INPUT_T>> vec2d)
-// {
-//   std::vector<INPUT_T> vec1d;
-//   for (int i = 0; i < vec2d.size(); ++i) {
-//     for (int j = 0; j < vec2d[0].size(); ++j) {
-//       vec1d.push_back(vec2d[i][j]);
-//     }
-//   }
-//   return vec1d;
-// }
 
 template <typename T>
 std::vector<T> Dataset::Flatten2DVector(const std::vector<std::vector<T>>& vec2d)

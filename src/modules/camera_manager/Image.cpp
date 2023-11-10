@@ -71,20 +71,11 @@ std::tuple<Tensor, Tensor> Image::Img2WorldRay(int res_w, int res_h)
   float fx = intri_.index({ 0, 0 }).item<float>();
   float fy = intri_.index({ 1, 1 }).item<float>();
   
-  // std::cout << cx << std::endl;
-  // std::cout << cy << std::endl;
-  // std::cout << fx << std::endl;
-  // std::cout << fy << std::endl;
-
   Tensor i = torch::linspace(.5f, half_h * 2.f - .5f, res_h, CUDAFloat);
   Tensor j = torch::linspace(.5f, half_w * 2.f - .5f, res_w, CUDAFloat);
-  // std::cout << i.index({Slc(0, 10)}) << std::endl;
-  // std::cout << j.index({Slc(0, 10)}) << std::endl;
   auto ijs = torch::meshgrid({i, j}, "ij");
   i = ijs[0].reshape({-1});
   j = ijs[1].reshape({-1});
-  // std::cout << i.index({Slc(0, 10)}) << std::endl;
-  // std::cout << j.index({Slc(0, 10)}) << std::endl;
   Tensor cam_coords = torch::stack({ (j - cx) / fx, -(i - cy) / fy, -torch::ones_like(j, CUDAFloat)}, -1); // [ n_pix, 3 ]
   Tensor rays_d = torch::matmul(c2w_.index({None, Slc(0, 3), Slc(0, 3) }), cam_coords.index({Slc(), Slc(), None})).index({"...", 0});  // [ n_cams, n_pix, 3 ]
   Tensor rays_o = c2w_.index({None, Slc(0, 3), 3}).repeat({res_h * res_w, 1 });

@@ -27,7 +27,7 @@ private:
     /* data */
 public:
     Dataset(GlobalData *global_data);
-    enum class DataCode{C2W, W2C, INTRI, BOUND};
+    enum class DataCode{C2W, W2C, INTRI, BOUND, NONE};
     
     void Normalize(); // deep process Image c2w
     void UpdateNormProc();
