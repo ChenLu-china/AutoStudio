@@ -10,7 +10,7 @@
 #include <tiny-cuda-nn/cpp_api.h>
 
 #include "FieldModel.h"
-#include "../../../Common.h"
+
 
 namespace AutoStudio
 {

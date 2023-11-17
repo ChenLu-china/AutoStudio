@@ -16,8 +16,8 @@
 #include <torch/torch.h>
 #endif
 
-// #include <ATen/cuda/CUDAUtils.h>
-// #include <c10/cuda/CUDAGuard.h>
+#include <ATen/cuda/CUDAUtils.h>
+#include <c10/cuda/CUDAGuard.h>
 
 #ifdef snprintf
 #undef snprintf
@@ -27,12 +27,25 @@
 #include <tiny-cuda-nn/cpp_api.h>
 #include <iostream>
 
+#include "../../Common.h"
+
+#define CHECK_TS(x) CHECK(x.device().is_cuda()); CHECK(x.is_contiguous())
 
 namespace AutoStudio
 {
 
 using Tensor = torch::Tensor;
 using namespace torch::autograd;
+
+void* void_data_ptr(torch::Tensor& tensor)
+{
+    switch (tensor.scalar_type())
+    {
+        case torch::kFloat32: return tensor.data_ptr<float>();
+        case torch::kHalf: return tensor.data_ptr<torch::Half>();
+        default: throw std::runtime_error{"Unknown precision torch->void"};
+    }
+}
 
 c10::ScalarType torch_type(tcnn::cpp::Precision precision)
 {
@@ -71,7 +84,27 @@ TMLP::TMLP(GlobalData* global_data, int d_in, int d_out, int d_hidden, int n_hid
     module_->initialize_params(seed, params.data_ptr<float>());
     params_ = params.to(torch::kFloat32);
     params.requires_grad_(true);
-    std::cout << params_.sizes() << std::endl;
+}
+
+variable_list TMLPFunction::forward(AutogradContext *ctx,
+                                    Tensor input,
+                                    Tensor params,
+                                    IValue tmlp_info)
+{
+    ctx->set_materialize_grads(false);
+    auto info_ptr = tmlp_info.toCustomClass<TMLPInfo>();
+    ctx->saved_data["tmlp_info"] = tmlp_info;
+    auto tmlp_wp = info_ptr->tmlp_;
+
+    CHECK_TS(input);
+    CHECK_TS(params);
+
+}
+
+variable_list TMLPFunction::backward(AutogradContext *ctx,
+                                    variable_list grad_output)
+{
+    
 }
 
 } // namespace AutoStudio

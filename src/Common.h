@@ -2,7 +2,7 @@
 * This file is part of autostudio
 * Copyright (C) 
 **/
-
+// #pragma once
 
 #ifndef COMMON_H
 #define COMMON_H
