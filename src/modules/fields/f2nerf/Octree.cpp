@@ -102,7 +102,39 @@ Octree::Octree(int max_depth,
 
   AddTreeNode(0, 0, Wec3f::Zero(), bbox_side_len);
 
+  // construct edge pool for edge point sampling - for TV loss.
+
+  // Copy to GPU
+  octree_nodes_gpu_ = torch::from_blob(octree_nodes_.data(), 
+                                      { int(octree_nodes_.size() * sizeof(OctreeNode)) }, 
+                                      CPUUInt8).to(torch::kCUDA).contiguous();
+  //
+  tree_weight_stats_ = torch::full({ int(octree_nodes_.size()) }, INIT_NODE_STAT, CUDAInt);
+  tree_alpha_stats_  = torch::full({ int(octree_nodes_.size()) }, INIT_NODE_STAT, CUDAInt);
+
+  tree_visit_cnt_ = torch::zeros({ int(octree_nodes_.size()) }, CUDAInt);
+  octree_trans_gpu_ = torch::from_blob(octree_trans_.data(), 
+                                      { int(octree_trans_.size() * sizeof(OctreeTransInfo)) },
+                                      CPUUInt8).to(torch::kCUDA).contiguous();
+ 
+  octree_edges_gpu_ = torch::from_blob(octree_edges_.data(),
+                                      { int(octree_edges_.size() * sizeof(OctreeEdge)) },
+                                      CPUUInt8).to(torch::kCUDA).contiguous();
+
+  // Construct octree search order
+  std::vector<int> search_order;
+  for (int st = 0; st < 8; st++) {
+    auto cmp = [st](int a, int b) {
+      int bt = ((a ^ b) & -(a ^ b));
+      return (a & bt) ^ (st & bt);
+    };
+
+    for (int i = 0; i < 8; i++) search_order.push_back(i);
+    std::sort(search_order.begin() + st * 8, search_order.begin() + (st + 1) * 8, cmp);
+  }
+  node_search_order_ = torch::from_blob(search_order.data(), { 8 * 8 }, CPUInt).to(torch::kUInt8).to(torch::kCUDA).contiguous();
 }
+
 
 inline void Octree::GenPixelIdx()
 {
@@ -151,7 +183,7 @@ inline void Octree::AddTreeNode(int u, int depth, Wec3f center, float bbox_len)
    * Implementation of octree construction renference section 3.3     
   */
   CHECK_LT(u, octree_nodes_.size());
-  std::cout << u << std::endl;
+  // std::cout << u << std::endl;
   
   octree_nodes_[u].center_ = center;
   octree_nodes_[u].is_leaf_node_ = false;
@@ -273,6 +305,10 @@ std::vector<int> Octree::GetVaildCams(float bbox_len, const Tensor& center)
 }
 
 std::tuple<Tensor, Tensor> PCA(const Tensor& pts) {
+  /**
+   * eigendecomposition covariance matrix Q 
+   * finally select first three largest eigenvalues
+  */
   Tensor mean = pts.mean(0, true); // [n_pts, ]
   Tensor moved = pts - mean;
   Tensor cov = torch::matmul(moved.unsqueeze(-1), moved.unsqueeze(1));  // [ n_pts, n_frames, n_frames ];
@@ -298,13 +334,16 @@ OctreeTransInfo Octree::AddTreeTrans(const Tensor& rand_pts,const Tensor& c2w, c
   // First step: align distance, find good cameras
   Tensor dis = torch::linalg_norm(cam_pos - center.unsqueeze(0), 2, -1, false);
   float dis_summary = DistanceSummary(dis); // r is empirically set as the mean distance to the region center among the 1/4 nearest visible cameras
-
+  // std::cout << dis_summary << std::endl;
+  // std::cout << center << std::endl;
   Tensor rel_cam_pos, normed_cam_pos;
 
   rel_cam_pos = (cam_pos - center.unsqueeze(0)) / dis.unsqueeze(-1) * dis_summary;
   normed_cam_pos = (cam_pos - center.unsqueeze(0)) / dis.unsqueeze(-1);
 
   Tensor dis_pairs = torch::linalg_norm(normed_cam_pos.unsqueeze(0) - normed_cam_pos.unsqueeze(1), 2, -1, false);
+  // std::cout << normed_cam_pos.sizes() << std::endl;
+  // std::cout << dis_pairs.sizes() << std::endl;
   dis_pairs = dis_pairs.to(torch::kCPU).contiguous();
   const float* dis_pairs_ptr = dis_pairs.data_ptr<float>();
 
@@ -314,6 +353,7 @@ OctreeTransInfo Octree::AddTreeTrans(const Tensor& rand_pts,const Tensor& c2w, c
   good_cams.push_back(torch::randint(n_cur_cams, {1}, CPUInt).item<int>());
   cam_marks[good_cams[0]] = 1;
 
+  // find farthest visible camera for n_c -1 times 
   for (int cnt = 1; cnt < n_virt_cams && cnt < n_cur_cams; cnt++) {
       int candi = -1; float max_dis = -1.f;
       for (int i = 0; i < n_cur_cams; i++) {
@@ -345,7 +385,6 @@ OctreeTransInfo Octree::AddTreeTrans(const Tensor& rand_pts,const Tensor& c2w, c
   Tensor good_cam_axis = torch::zeros({ n_virt_cams, 3, 3 }, CUDAFloat);
 
   CHECK_EQ(good_cams.size(), n_virt_cams);
-
   Tensor cam_scale = (dis / dis_summary).clip(1.f, 1e9f);
   rel_cam_pos = (cam_pos - center.unsqueeze(0)) / dis.unsqueeze(-1) * dis.unsqueeze(-1).clip(dis_summary, 1e9f);
   for (int i = 0; i < good_cams.size(); i++) {
@@ -354,7 +393,6 @@ OctreeTransInfo Octree::AddTreeTrans(const Tensor& rand_pts,const Tensor& c2w, c
       good_cam_axis.index_put_({i}, cam_axes[good_cams[i]]);
       good_cam_scale.index_put_({i}, cam_scale[good_cams[i]]);
   }
-
   Tensor expect_z_axis = good_rel_cam_pos / torch::linalg_norm(good_rel_cam_pos, 2, -1, true);
   Tensor rots = torch::zeros({ n_virt_cams, 3, 3 }, CUDAFloat);
 
@@ -378,8 +416,8 @@ OctreeTransInfo Octree::AddTreeTrans(const Tensor& rand_pts,const Tensor& c2w, c
   };
 
   for (int i = 0; i < good_cams.size(); i++) {
-      Wec3f from_z_axis = ToEigenVec3(good_cam_axis.index({i, 2, Slc(0, 3)}));
-      Wec3f to_z_axis = ToEigenVec3(expect_z_axis.index({i, Slc(0, 3)}));
+      Wec3f from_z_axis = ToEigenVec3(good_cam_axis.index({i, 2, Slc(0, 3)})); // unit vector
+      Wec3f to_z_axis = ToEigenVec3(expect_z_axis.index({i, Slc(0, 3)})); // also unit vector
       Wec3f crossed = from_z_axis.cross(to_z_axis);
       float cos_val = from_z_axis.dot(to_z_axis);
       float sin_val = crossed.norm();
@@ -389,26 +427,34 @@ OctreeTransInfo Octree::AddTreeTrans(const Tensor& rand_pts,const Tensor& c2w, c
       }
       crossed = crossed.normalized();
       Watrix33f rot_mat;
-      rot_mat = Eigen::AngleAxisf(angle, crossed);
+      // R = cos(angle) I + (1 - cos(angle)) n*n^T + sin(angle)n^
+      rot_mat = Eigen::AngleAxisf(angle, crossed);  
 
       rots.index_put_({ i }, ToTorchMat33(rot_mat));
   }
-
-  good_cam_axis = torch::matmul(good_cam_axis, rots.transpose(1, 2));
-
+  // do
+  good_cam_axis = torch::matmul(good_cam_axis, rots.transpose(1, 2));  // new w2c
+  // std::cout << good_cam_axis.sizes() << std::endl;
   Tensor x_axis = good_cam_axis.index({Slc(), 0, Slc()}).contiguous();
   Tensor y_axis = good_cam_axis.index({Slc(), 1, Slc()}).contiguous();
   Tensor z_axis = good_cam_axis.index({Slc(), 2, Slc()}).contiguous();
   Tensor diff = z_axis - expect_z_axis;
   CHECK_LT(diff.abs().max().item<float>(), 1e-3f);
 
-  float focal = (intri.index({ Slc(), 0, 0 }) / intri.index({ Slc(), 0, 2 })).item<float>();
+  // std::cout << intri.sizes() << std::endl;
+  // std::cout << intri << std::endl;
+  
+  float focal = (intri.index({ 0, 0 }) / intri.index({ 0, 2 })).item<float>();
+  // float focal = (intri.index({ Slc(), 0, 0 }) / intri.index({ Slc(), 0, 2 })).item<float>();
+  // std::cout << "pass" << std::endl;
   x_axis *= focal; y_axis *= focal;
   x_axis *= good_cam_scale.unsqueeze(-1); y_axis *= good_cam_scale.unsqueeze(-1);
   x_axis = torch::cat({x_axis, y_axis}, 0);
   z_axis = torch::cat({z_axis, z_axis}, 0);
+  // std::cout << x_axis.sizes() << std::endl;
 
-  Tensor wp_cam_pos = torch::cat({good_cam_pos, good_cam_pos}, 0);
+  Tensor wp_cam_pos = torch::cat({good_cam_pos, good_cam_pos}, 0); // [2 * n_virt_cams, 3]
+  // std::cout << wp_cam_pos.sizes() << std::endl; 
   Tensor frame_trans = torch::zeros({N_PROS, 2, 4}, CUDAFloat);
   frame_trans.index_put_({Slc(), 0, Slc(0, 3)}, x_axis);
   frame_trans.index_put_({Slc(), 1, Slc(0, 3)}, z_axis);
@@ -419,12 +465,12 @@ OctreeTransInfo Octree::AddTreeTrans(const Tensor& rand_pts,const Tensor& c2w, c
   // Mapped points and Jacobian
   Tensor transed_pts = torch::matmul(frame_trans.index({ None, Slc(), Slc(), Slc(0, 3)}), rand_pts.index({ Slc(), None, Slc(), None}));
   transed_pts = transed_pts.index({"...", 0}) + frame_trans.index({ None, Slc(), Slc(), 3 });
-
+  // std::cout << transed_pts.sizes() << std::endl;
   Tensor dv_da = 1.f / transed_pts.index({Slc(), Slc(), 1 });
   Tensor dv_db = transed_pts.index({Slc(), Slc(), 0 }) / -transed_pts.index({Slc(), Slc(), 1 }).square();
   Tensor dv_dab = torch::stack({ dv_da, dv_db }, -1); // [ n_pts, N_PROS, 2 ]
   Tensor dab_dxyz = frame_trans.index({ None, Slc(), Slc(), Slc(0, 3)}).clone(); // [ n_pts, N_PROS, 2, 3 ];
-  Tensor dv_dxyz = torch::matmul(dv_dab.unsqueeze(2), dab_dxyz).index({Slc(), Slc(), 0, Slc()});  // [ n_pts, N_PROS, 3 ];
+  Tensor dv_dxyz = torch::matmul(dv_dab.unsqueeze(2), dab_dxyz).index({Slc(), Slc(), 0, Slc()});  // [ n_pts, N_PROS, 3 ]; O -> I
 
   CHECK(transed_pts.index({Slc(), Slc(), 1 }).max().item<float>() < 0.f);
   transed_pts = transed_pts.index({Slc(), Slc(), 0 }) / transed_pts.index({Slc(), Slc(), 1 });
@@ -433,12 +479,12 @@ OctreeTransInfo Octree::AddTreeTrans(const Tensor& rand_pts,const Tensor& c2w, c
 
   // Cosntruct lin mapping
   Tensor L, V;
-  std::tie(L, V) = PCA(transed_pts);
+  std::tie(L, V) = PCA(transed_pts);  // pca final find a 
   V = V.permute({1, 0}).index({Slc(0, 3)}).contiguous(); // [ 3, N_PROS ]
 
-  Tensor jac = torch::matmul(V.index({None}), dv_dxyz);   // [ n_pts, 3, 3 ];
-  Tensor jac_warp2world = torch::linalg_inv(jac);
-  Tensor jac_warp2image = torch::matmul(dv_dxyz, jac_warp2world);
+  Tensor jac = torch::matmul(V.index({None}), dv_dxyz);   // [ n_pts, 3, 3 ];  I -> W
+  Tensor jac_warp2world = torch::linalg_inv(jac);  // W -> O
+  Tensor jac_warp2image = torch::matmul(dv_dxyz, jac_warp2world); // W -> I 
 
   Tensor jac_abs = jac_warp2image.abs();  // [n_pts, N_PROS, 3]
   auto [ jac_max, max_tmp ] = torch::max(jac_abs, 1); // [ n_pts, 3 ]

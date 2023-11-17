@@ -6,8 +6,7 @@
 
 #ifndef FIELDSFACTORY_H
 #define FIELDSFACTORY_H
-#include "../include/FieldModel.h"
-
+#include "../../common/include/FieldModel.h"
 
 namespace AutoStudio
 {

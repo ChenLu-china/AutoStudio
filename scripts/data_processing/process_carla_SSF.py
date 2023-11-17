@@ -338,6 +338,8 @@ def get_tf_cams(c2ws, target_radius=1.):
     global world_offset 
     if world_offset is None:
         world_offset = -translate
+    else:
+        translate = -world_offset
     return translate, scale
 
 def normalize_cam_dict(c2ws, target_radius=1., in_geometry_file=None, out_geometry_file=None):
@@ -667,7 +669,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="road data preprocessing")
     parser.add_argument("--data_dir", type=str, default='/opt/data/private/chenlu/AutoStudio/AutoStudio/data/carla/',
                     help="")
-    parser.add_argument("--scene_name",type=str, default='0',
+    parser.add_argument("--scene_name",type=str, default='5',
                        help="")
     parser.add_argument("--img_size", type=int, default=[512, 768], action="append")
     parser.add_argument("--max_depth", type=float, default=100, help="max depth each image can see")
@@ -676,7 +678,7 @@ if __name__ == '__main__':
                     help="")
     parser.add_argument("--save_path_name", type=str, default="Carla_SSF")
     # task
-    parser.add_argument("--tasks", type=str, default=['omni_only'],
+    parser.add_argument("--tasks", type=str, default=['data_only'],
                     choices=[['data_only'], ['omni_only'], ['masks_only'],['depth_only'], ['vis_points']],
                     help="")
     

@@ -7,7 +7,7 @@
 #ifndef BASEMODEL_H
 #define BASEMODEL_H
 #include <torch/torch.h>
-
+#include <vector>
 
 namespace AutoStudio
 {

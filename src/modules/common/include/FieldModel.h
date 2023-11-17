@@ -12,7 +12,7 @@
 #include <torch/torch.h>
 #include <memory>
 #include <yaml-cpp/yaml.h>
-#include "../../common/include/BaseModel.h"
+#include "BaseModel.h"
 #include "../../../utils/GlobalData.h"
 
 

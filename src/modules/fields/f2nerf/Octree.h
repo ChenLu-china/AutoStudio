@@ -6,6 +6,7 @@
 
 #ifndef OCTREE_H
 #define OCTREE_H
+
 #include <torch/torch.h>
 #include "Eigen/Eigen"
 #include "../../../Common.h"

@@ -4,7 +4,6 @@
 **/
 #include <torch/torch.h>
 #include "OctreeMap.h"
-#include "../include/FieldModel.h"
 
 namespace AutoStudio
 {
@@ -21,8 +20,46 @@ OctreeMap::OctreeMap(GlobalData* global_data)
     int bbox_levels = config["bbox_levels"].as<int>();
     float bbox_side_len = (1 << (bbox_levels - 1));
     
-    octree_ = std::make_unique<Octree>(max_level, bbox_side_len, split_dist_thres, dataset);
-    
+    //construct octree and make warp transformation matrix
+    octree_ = std::make_unique<Octree>(max_level, bbox_side_len, split_dist_thres, dataset); 
+
+    // visualize octree map
+    VisOctree();
+    global_data_ -> n_volumes_ = octree_ -> octree_trans_.size();
+    std::cout << "The number of valid leaf node is :" << octree_ -> octree_trans_.size() << std::endl;
+    std::cout << "The number of valid leaf node is :" << global_data_->n_volumes_ << std::endl;
+    // construct network
+    hashmap_ = std::make_unique<Hash3DVertex>(global_data_);
+
+
+}
+
+void OctreeMap::VisOctree()
+{
+    std::ofstream f(global_data_ -> base_exp_dir_ + "/octree.obj", std::ios::out);
+
+    auto& octree_nodes = octree_->octree_nodes_;
+    int n_nodes = octree_->octree_nodes_.size();
+    for(const auto& node : octree_nodes){
+        for(int st = 0; st < 8; ++st){
+            Wec3f xyz = node.center_ + Wec3f(((st >> 2 & 1) - 0.5f), ((st >> 1 & 1) - 0.5f), ((st >> 0 & 1) - 0.5f)) * node.extend_len_;
+            f << "v " << xyz[0] << " " << xyz[1] << " " << xyz[2] << std::endl;
+        }
+    }
+
+    for(int i = 0; i< n_nodes; ++i){
+        if (octree_nodes[i].trans_idx_ < 0) { continue; }
+        for (int a = 0; a < 8; ++a){
+            for(int b = a + 1; b < 8; ++b){
+                int st = (a ^ b);
+                if (st == 1 || st == 2 || st == 4){
+                   f << "l " << i * 8 + a + 1 << " " << i * 8 + b + 1 << std::endl;
+                }
+            }
+        }
+    }
+
+    f.close();
 }
 
 std::vector<Tensor> OctreeMap::States()

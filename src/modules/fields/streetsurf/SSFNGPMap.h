@@ -8,9 +8,8 @@
 #define SSFNGPMAP_H
 #include <torch/torch.h>
 #include "../../../Common.h"
-#include "../include/FieldModel.h"
 #include "../../../dataset/Dataset.h"
-
+#include "../../common/include/FieldModel.h"
 
 namespace AutoStudio
 {
