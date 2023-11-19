@@ -99,12 +99,122 @@ variable_list TMLPFunction::forward(AutogradContext *ctx,
     CHECK_TS(input);
     CHECK_TS(params);
 
+    CHECK_EQ(input.scalar_type(), torch::kFloat32);
+    CHECK_EQ(params.scalar_type(), torch_type(tmlp_wp->module_->param_precision()));
+
+    CHECK_EQ(input.size(1), tmlp_wp->module_->n_input_dims());
+    CHECK_EQ(params.size(0), tmlp_wp->module_->n_params());
+
+    at::Device device = input.device();
+    CHECK_EQ(input.device(), params.device());
+
+    const at::cuda::CUDAGuard device_guard(device);
+    cudaStream_t stream = at::cuda::getCurrentCUDAStream();
+    
+    uint32_t batch_size = input.size(0);
+
+    torch::Tensor output = torch::rand({ batch_size, tmlp_wp->module_->n_output_dims() }, torch::TensorOptions().dtype(
+        torch_type(tmlp_wp->module_->output_precision())).device(device));
+    
+    tcnn::cpp::Context tmlp_ctx;
+    if (!input.requires_grad() && !params.requires_grad()){
+        tmlp_wp->module_->inference(stream);
+    }
+    else{
+        tmlp_ctx = tmlp_wp->module_->forward(stream, batch_size, input.data_ptr<float>(), 
+                                            void_data_ptr(output), void_data_ptr(params),
+                                            input.requires_grad());
+    }
+    // torch::cuda::synchronize()
+    CHECK_EQ(output.scalar_type(), torch_type(tmlp_wp->module_->output_precision()));
+    tmlp_wp->query_output_ = output;
+    tmlp_wp->query_pts_ = input;
+    tmlp_wp->tmlp_ctx_ = std::move(tmlp_ctx);
+    return {output};
 }
 
 variable_list TMLPFunction::backward(AutogradContext *ctx,
                                     variable_list grad_output)
 {
+    auto info_ptr = ctx->saved_data["tmlp_info"].toCustomClass<TMLPInfo>();
+    auto tmlp_wp = info_ptr -> tmlp_;
+    float scale = tmlp_wp->loss_scale_;
+
+    if (tmlp_wp->tmlp_ctx_){
+        throw std::runtime_error("Module::bwd: called with invalid context. fwd likely (mistakenly) ran in reference mode.");
+    }
+
+    Tensor dL_doutput = grad_output[0] * scale;
+    Tensor& input = tmlp_wp->query_pts_;
+    Tensor& output = tmlp_wp->query_output_;
+    Tensor& params = tmlp_wp->params_;
+
+    CHECK_TS(input);
+    CHECK_TS(params);
+    CHECK_TS(output);
+    CHECK_TS(dL_doutput);
+
+    CHECK_EQ(input.scalar_type(), torch::kFloat32);
+    CHECK_EQ(params.scalar_type(), torch_type(tmlp_wp->module_->param_precision()));
+    CHECK_EQ(output.scalar_type(), torch_type(tmlp_wp->module_->output_precision()));
+    CHECK_EQ(dl_doutput.scalar_type(), torch_type(tmlp_wp->module_->output_precision()));
+
+    CHECK_EQ(input.size(0), tmlp_wp->module_->n_input_dims());
+    CHECK_EQ(output.size(0), tmlp_wp->module_->n_output_dims());
+    CHECK_EQ(params.size(0), tmlp_wp->module_->n_params());
+    CHECK_EQ(output.size(0), intput.size(0));
+    CHECK_EQ(dl_doutput.size(0), input.size(0));
+
+    // Check device
+    at::Device device = input.device();
+    CHECK_EQ(device, params.device());
+    CHECK_EQ(device, output.device());
+    CHECK_EQ(device, dl_doutput.device());
+
+    const at::cuda::CUDAGuard device_guard(device);
+    cudaStream_t stream = at::cuda::getCurrentCUDAStream();
+
+    uint32_t batch_size = input.size(0);
+
+    Tensor dL_dinput;
+    CHECK(input.requires_grad());
+    if (input.requires_grad()){
+        dL_dinput = torch::empty({ batch_size, input.size(1) },
+                        torch::TensorOptions().dtype(torch::kFloat32).device(torch::kCUDA));
+    }
+    torch::Tensor dL_dparams; 
+    dL_dparams = torch::empty( { int(tmlp_wp->module_->n_params())}, 
+                        torch::TensorOptions().dtype(torch_type(tmlp_wp->module_->param_precision())).device(device));
+    tmlp_wp->module_->backward(
+        stream,
+        tmlp_wp->tmlp_ctx_,
+        batch_size,
+        input.requires_grad() ? dl_dinput.data_ptr<float>() : nullptr,
+        void_data_ptr(dL_doutput),
+        void_data_ptr(dL_dparams),
+        input.data_ptr<float>(),
+        void_data_ptr(output),
+        void_data_ptr(params)
+    );
+
+    // torch::cuda::synchronize()
+
+    // return { dL}
+    dL_dinput = dL_dinput / scale;
+    dL_dparams = (dL_dparams).to(torch::kFloat32) / scale;
     
+    if (!torch::all(torch::isfinite(dL_dinput)).item<bool>() || 
+        !torch::all(torch::isfinite(dL_doutput)).item<bool>())){
+        tmlp_wp->global_data_->backward_nan = true;
+        tmlp_wp->loss_scale_ = std::max(tmlp_wp->loss_scale_ / 2.f, 1.f);
+    }
+
+    return {dL_dinput, dL_dparams, Tensor()};
+}
+
+void TMLP::InitParams(){
+    size_t seed = 19970826;
+    module_->initialize_params(seed, params_.data_ptr<float>());
 }
 
 } // namespace AutoStudio

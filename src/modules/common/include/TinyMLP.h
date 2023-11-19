@@ -22,11 +22,17 @@ class TMLP : public FieldModel
 {
 public:
     TMLP(GlobalData* global_data, int d_in, int d_out, int d_hidden, int n_hidden_layers);
+    void InitParams();
+    int LoadStates(const )
 
     int d_in_, d_out_, d_hidden_, n_hidden_layers_;
     
     std::unique_ptr<tcnn::cpp::Module> module_;
     Tensor params_;
+    Tensor query_pts_, query_output_;
+    
+    tcnn::cpp::Context tmlp_ctx_;
+    float loss_scale_ = 128.f;
 }; 
 
 class TMLPInfo : public torch::CustomClassHolder
