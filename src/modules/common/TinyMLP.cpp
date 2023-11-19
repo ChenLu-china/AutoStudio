@@ -118,7 +118,7 @@ variable_list TMLPFunction::forward(AutogradContext *ctx,
     
     tcnn::cpp::Context tmlp_ctx;
     if (!input.requires_grad() && !params.requires_grad()){
-        tmlp_wp->module_->inference(stream);
+        tmlp_wp->module_->inference(stream, batch_size, input.data_ptr<float>(), void_data_ptr(output), void_data_ptr(params));
     }
     else{
         tmlp_ctx = tmlp_wp->module_->forward(stream, batch_size, input.data_ptr<float>(), 
@@ -140,7 +140,7 @@ variable_list TMLPFunction::backward(AutogradContext *ctx,
     auto tmlp_wp = info_ptr -> tmlp_;
     float scale = tmlp_wp->loss_scale_;
 
-    if (tmlp_wp->tmlp_ctx_){
+    if (!tmlp_wp->tmlp_ctx_.ctx){
         throw std::runtime_error("Module::bwd: called with invalid context. fwd likely (mistakenly) ran in reference mode.");
     }
 
@@ -157,19 +157,19 @@ variable_list TMLPFunction::backward(AutogradContext *ctx,
     CHECK_EQ(input.scalar_type(), torch::kFloat32);
     CHECK_EQ(params.scalar_type(), torch_type(tmlp_wp->module_->param_precision()));
     CHECK_EQ(output.scalar_type(), torch_type(tmlp_wp->module_->output_precision()));
-    CHECK_EQ(dl_doutput.scalar_type(), torch_type(tmlp_wp->module_->output_precision()));
+    CHECK_EQ(dL_doutput.scalar_type(), torch_type(tmlp_wp->module_->output_precision()));
 
     CHECK_EQ(input.size(0), tmlp_wp->module_->n_input_dims());
     CHECK_EQ(output.size(0), tmlp_wp->module_->n_output_dims());
     CHECK_EQ(params.size(0), tmlp_wp->module_->n_params());
-    CHECK_EQ(output.size(0), intput.size(0));
-    CHECK_EQ(dl_doutput.size(0), input.size(0));
+    CHECK_EQ(output.size(0), input.size(0));
+    CHECK_EQ(dL_doutput.size(0), input.size(0));
 
     // Check device
     at::Device device = input.device();
     CHECK_EQ(device, params.device());
     CHECK_EQ(device, output.device());
-    CHECK_EQ(device, dl_doutput.device());
+    CHECK_EQ(device, dL_doutput.device());
 
     const at::cuda::CUDAGuard device_guard(device);
     cudaStream_t stream = at::cuda::getCurrentCUDAStream();
@@ -189,7 +189,7 @@ variable_list TMLPFunction::backward(AutogradContext *ctx,
         stream,
         tmlp_wp->tmlp_ctx_,
         batch_size,
-        input.requires_grad() ? dl_dinput.data_ptr<float>() : nullptr,
+        input.requires_grad() ? dL_dinput.data_ptr<float>() : nullptr,
         void_data_ptr(dL_doutput),
         void_data_ptr(dL_dparams),
         input.data_ptr<float>(),
@@ -204,8 +204,8 @@ variable_list TMLPFunction::backward(AutogradContext *ctx,
     dL_dparams = (dL_dparams).to(torch::kFloat32) / scale;
     
     if (!torch::all(torch::isfinite(dL_dinput)).item<bool>() || 
-        !torch::all(torch::isfinite(dL_doutput)).item<bool>())){
-        tmlp_wp->global_data_->backward_nan = true;
+        !torch::all(torch::isfinite(dL_doutput)).item<bool>()){
+        tmlp_wp->global_data_->backward_nan_ = true;
         tmlp_wp->loss_scale_ = std::max(tmlp_wp->loss_scale_ / 2.f, 1.f);
     }
 
@@ -215,6 +215,26 @@ variable_list TMLPFunction::backward(AutogradContext *ctx,
 void TMLP::InitParams(){
     size_t seed = 19970826;
     module_->initialize_params(seed, params_.data_ptr<float>());
+}
+
+int TMLP::LoadStates(const std::vector<Tensor>& states, int idx){
+    CHECK(false) << "This should be handled by the parent module";
+    return idx;
+}
+
+std::vector<Tensor> TMLP::States()
+{
+    CHECK(false) << "This should be handled by the parent module";
+    return {};
+}
+
+std::vector<torch::optim::OptimizerParamGroup> TMLP::OptimParamGroups(){
+    CHECK(false) << "This should be handled by the parent module";
+    return {};
+}
+
+void TMLP::Reset() {
+  CHECK(false) << "This should be handled by the parent module";
 }
 
 } // namespace AutoStudio
