@@ -66,11 +66,11 @@ std::tuple<RangeRays, Tensor> Sampler::TestRays()
 }
 
 
-std::tuple<RangeRays, Tensor> Sampler::GetTrainRays()
+std::tuple<RangeRays, Tensor, Tensor> Sampler::GetTrainRays()
 {
     RangeRays rays;
     Tensor rgbs;
-    return {rays, rgbs};
+    return {rays, rgbs, Tensor()};
 }
 
 /**
@@ -83,12 +83,12 @@ ImageSampler::ImageSampler(GlobalData* global_data) : Sampler(global_data)
     fmt::print("The {} dataset use Single Image Sampler\n", set_name);
 }
 
-std::tuple<RangeRays, Tensor> ImageSampler::GetTrainRays() 
+std::tuple<RangeRays, Tensor, Tensor> ImageSampler::GetTrainRays() 
 {
-    std::cout << "Image Sampler" << std::endl;
+    // std::cout << "Image Sampler" << std::endl;
     int cam_idx =  torch::randint(train_set_.size(0), {1}).item<int>();
     cam_idx = train_set_.index({cam_idx}).item<int>();
-    std::cout << cam_idx << std::endl;
+    // std::cout << cam_idx << std::endl;
     auto image = images_[cam_idx];
     image.toCUDA(); 
     
@@ -108,7 +108,8 @@ std::tuple<RangeRays, Tensor> ImageSampler::GetTrainRays()
     Tensor sel_rays_d = rays_d.index({sel_indices}).to(torch::kCUDA).contiguous();
     Tensor sel_ranges = range.index({sel_indices}).to(torch::kCUDA).contiguous();
     Tensor sel_rgbs = image.img_tensor_.view({-1, 3}).index({sel_indices}).to(torch::kCUDA).contiguous();
-    return {{sel_rays_o, sel_rays_d, sel_ranges}, sel_rgbs};
+    Tensor sel_cams_idx = torch::full({batch_size_}, cam_idx, CUDAInt);
+    return {{sel_rays_o, sel_rays_d, sel_ranges}, sel_rgbs, sel_cams_idx};
 }
 
 std::tuple<RangeRays, Tensor> ImageSampler::TestRays()
@@ -179,7 +180,7 @@ void RaySampler::GenRandRaysIdx()
     std::cout << rays_idx_.sizes() << std::endl;
 }
 
-std::tuple<RangeRays, Tensor> RaySampler::GetTrainRays()
+std::tuple<RangeRays, Tensor, Tensor> RaySampler::GetTrainRays()
 {
     int64_t end_idx = cur_idx_ + batch_size_;
     int64_t batch_size; 
@@ -192,7 +193,7 @@ std::tuple<RangeRays, Tensor> RaySampler::GetTrainRays()
     Tensor sel_rgbs   = rgbs_.index({sel_idx}).contiguous();
     Tensor sel_ranges = ranges_.index({sel_idx}).contiguous();
     
-    return {{sel_rays_o, sel_rays_d, sel_ranges}, sel_rgbs};
+    return {{sel_rays_o, sel_rays_d, sel_ranges}, sel_rgbs, Tensor()};
 }
 
 std::tuple<RangeRays, Tensor> RaySampler::TestRays()

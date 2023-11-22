@@ -1,5 +1,5 @@
 defaults:
-  # - train: 20k
+  - train: 20k
   - dataset: default
   # - renderer: default
   # - pts_sampler: perspective

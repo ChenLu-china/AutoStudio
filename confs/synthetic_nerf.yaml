@@ -1,5 +1,5 @@
 defaults:
-  # - train: 20k
+  - train: 20k
   - dataset: default
   # - renderer: default
   # - pts_sampler: perspective
@@ -7,7 +7,9 @@ defaults:
   # - shader: sh_shader
   - _self_
 
-
 dataset_name: synthetic_nerf
 task_name: ngp_fox
 exp_name: test
+
+mode: train
+

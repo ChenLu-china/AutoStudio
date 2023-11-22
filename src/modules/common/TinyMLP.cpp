@@ -56,7 +56,7 @@ c10::ScalarType torch_type(tcnn::cpp::Precision precision)
     }
 }
 
-TORCH_LIBRARY(tcnn_wp, m)
+TORCH_LIBRARY(tmlp_wp, m)
 {
   std::cout << "register TMLPInfo" << std::endl;
   m.class_<TMLPInfo>("TMLPInfo").def(torch::init());
@@ -84,7 +84,23 @@ TMLP::TMLP(GlobalData* global_data, int d_in, int d_out, int d_hidden, int n_hid
     module_->initialize_params(seed, params.data_ptr<float>());
     params_ = params.to(torch::kFloat32);
     params.requires_grad_(true);
+    std::cout << params.sizes() << std::endl;
 }
+
+Tensor TMLP::Query(const Tensor& pts)
+{   
+    auto info = torch::make_intrusive<TMLPInfo>();
+
+    int batch_size = pts.size(0);
+    int batch_size_al = (batch_size + 127) / 128 * 128;
+    auto pad_opt = torch::nn::functional::PadFuncOptions({0LL, 0LL, 0LL, (long long) (batch_size_al - batch_size)});
+    Tensor input = torch::nn::functional::pad(pts, pad_opt);
+    tmlp_ctx_.ctx.reset();
+    info->tmlp_ = this;
+    Tensor feat = TMLPFunction::apply(input, params_.to(torch::kFloat16), torch::IValue(info))[0];
+    return feat.index({Slc(0, batch_size), Slc(0, d_out_)}).to(torch::kFloat32).contiguous();
+}
+
 
 variable_list TMLPFunction::forward(AutogradContext *ctx,
                                     Tensor input,

@@ -14,5 +14,6 @@ int main(int argc, char* argv[]) {
     // auto global_data_pool_ = std::make_unique<AutoStudio::GlobalData>(conf_path);
     // auto dataset = std::make_unique<AutoStudio::Dataset>(global_data_pool_.get());
     auto runner = std::make_unique<AutoStudio::Runner>(conf_path);
+    runner->Execute();
     return 0;
 }

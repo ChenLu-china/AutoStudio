@@ -12,11 +12,13 @@
 #include "../../common/include/TinyMLP.h"
 #include "../../common/include/FieldModel.h"
 
-namespace AutoStudio
-{
+namespace AutoStudio {
 
 #define N_CHANNELS 2
 #define N_LEVELS 16  // arranged into L levels in instant-ngp
+using Tensor = torch::Tensor;
+using namespace torch::autograd;
+
 
 class Hash3DVertex : public FieldModel
 {
@@ -27,6 +29,10 @@ public:
 
     std::vector<Tensor> States() override;
     int LoadStates(const std::vector<Tensor>& states, int idx) override;
+    std::vector<torch::optim::OptimizerParamGroup> OptimParamGroups() override;
+    void Reset() override;
+
+    Tensor AnchoredQuery(const Tensor& coords, const Tensor& anchors) override;    
 
     int pool_size_;
     int mlp_hidden_dim_, mlp_out_dim_, n_hidden_layers_;
@@ -39,6 +45,24 @@ public:
     
     std::unique_ptr<TMLP> mlp_;
     int n_volumes_;
+
+    Tensor query_points_, query_volume_idx_;
+};
+
+class Hash3DVertexInfo : public torch::CustomClassHolder
+{
+public:
+    Hash3DVertex* hash3dvertex_ = nullptr;
+};
+
+class Hash3DVertexFunction : public Function<Hash3DVertexFunction>
+{
+public:
+    static variable_list forward(AutogradContext *ctx,
+                                Tensor feat_pool,
+                                torch::IValue hash3d_info);
+
+    static variable_list backward(AutogradContext *ctx, variable_list grad_output);
 };
 
 } // namespace AutoStudio

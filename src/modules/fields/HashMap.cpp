@@ -11,6 +11,13 @@ namespace AutoStudio
 {
 using Tensor = torch::Tensor;
 
+TORCH_LIBRARY(dec_hash3d_vertex, m)
+{
+    std::cout << "register Hash3DVertexInfo" << std::endl;
+    m.class_<Hash3DVertexInfo>("Hash3DVertexInfo").def(torch::init());
+}
+
+
 AutoStudio::Hash3DVertex::Hash3DVertex(GlobalData* global_data)
 {   
     /**
@@ -85,15 +92,79 @@ AutoStudio::Hash3DVertex::Hash3DVertex(GlobalData* global_data)
     mlp_ = std::make_unique<TMLP>(global_data, N_LEVELS * N_CHANNELS, mlp_out_dim_, mlp_hidden_dim_, n_hidden_layers_);
 }
 
+
+Tensor Hash3DVertex::AnchoredQuery(const Tensor& points, const Tensor& anchors)
+{
+#ifdef PROFILE
+#endif
+    auto info = torch::make_intrusive<Hash3DVertexInfo>();
+
+    query_points_ = ((points + 1.f) * .5f).contiguous();  // [-1, 1] -> [0, 1]
+    query_volume_idx_ = anchors.contiguous();
+    info->hash3dvertex_ = this;
+    Tensor feat = Hash3DVertexFunction::apply(feat_pool_, torch::IValue(info))[0];  // [n_points, n_levels * n_channels];
+    
+    Tensor output = mlp_->Query(feat);
+    output = output;
+    return output;
+}
+
+
 std::vector<Tensor> Hash3DVertex::States()
 {
-    std::vector<Tensor> ret;    
+    std::vector<Tensor> ret;
+    ret.push_back(feat_pool_.data());
+    ret.push_back(prim_pool_.data());
+    ret.push_back(bias_pool_.data());
+    ret.push_back(torch::full({1}, n_volumes_, CPUInt));
+
+    ret.push_back(mlp_->params_.data());   
     return ret;
 }
 
 int Hash3DVertex::LoadStates(const std::vector<Tensor>& states, int idx)
 {   
-    return idx;
+    feat_pool_.data().copy_(states[idx++]);
+    prim_pool_ = states[idx++].clone().to(torch::kCUDA).contiguous();
+    bias_pool_.data().copy_(states[idx++]);
+    n_volumes_ = states[idx++].item<int>();
 
+    mlp_->params_.data().copy_(states[idx++]);
+    
+    return idx;
 }
+
+std::vector<torch::optim::OptimizerParamGroup> Hash3DVertex::OptimParamGroups()
+{
+    std::vector<torch::optim::OptimizerParamGroup> ret;
+
+    float lr = global_data_->learning_rate_;
+    {
+        auto opt = std::make_unique<torch::optim::AdamOptions>(lr);
+        opt->betas() = {0.9, 0.99};
+        opt->eps() = 1e-15;
+
+        std::vector<Tensor> params = {feat_pool_};
+        ret.emplace_back(std::move(params), std::move(opt));
+    }
+
+    {
+        auto opt = std::make_unique<torch::optim::AdamOptions>(lr);
+        opt->betas() = {0.9, 0.99};
+        opt->eps() = 1e-15;
+        opt->weight_decay() = 1e-6;
+        
+        std::vector<Tensor> params;
+        params.push_back(mlp_->params_);
+        ret.emplace_back(std::move(params), std::move(opt));
+    }
+    return ret;
+}
+
+void Hash3DVertex::Reset()
+{
+    feat_pool_.data().uniform_(-1e-2f, 1e-2f);
+    mlp_->InitParams();
+}
+
 } // namespace AutoStudio
