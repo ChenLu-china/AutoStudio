@@ -66,7 +66,7 @@ __global__ void FindRayOctreeIntersectionKernel(int n_rays, int max_oct_intersec
 {
     int ray_idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (ray_idx >= n_rays) {
-    return;
+        return;
     }
     // Add offsets
     const Wec3f& rays_o = rays_o_ptr[ray_idx];
@@ -79,9 +79,9 @@ __global__ void FindRayOctreeIntersectionKernel(int n_rays, int max_oct_intersec
 
     int max_intersect_cnt = max_oct_intersect_per_ray;
     if (FILL) {
-    max_intersect_cnt = oct_idx_start_end[1] - oct_idx_start_end[0];
-    oct_intersect_idx = oct_intersect_idx + oct_idx_start_end[0];
-    oct_intersect_near_far = oct_intersect_near_far + oct_idx_start_end[0];
+        max_intersect_cnt = oct_idx_start_end[1] - oct_idx_start_end[0];
+        oct_intersect_idx = oct_intersect_idx + oct_idx_start_end[0];
+        oct_intersect_near_far = oct_intersect_near_far + oct_idx_start_end[0];
     }
 
     int stack_ptr = 0;
@@ -93,67 +93,67 @@ __global__ void FindRayOctreeIntersectionKernel(int n_rays, int max_oct_intersec
     int ray_st = (int(rays_d[0] > 0.f) << 2) | (int(rays_d[1] > 0.f) << 1) | (int(rays_d[2] > 0.f) << 0);
     search_order += ray_st * 8;
     while (stack_ptr >= 0 && intersect_cnt < max_intersect_cnt) {
-    int u = stack_info[stack_ptr * 2]; // Octree node idx;
-    const auto& node = octree_nodes[u];
-    if (stack_info[stack_ptr * 2 + 1] == -1) {
-        float cur_near = overall_near, cur_far = overall_far;
-        GetIntersection(rays_o, rays_d, node.center_, node.extend_len_, &cur_near, &cur_far);
-        bool can_live_stack = cur_near < cur_far;
+        int u = stack_info[stack_ptr * 2]; // Octree node idx;
+        const auto& node = octree_nodes[u];
+        if (stack_info[stack_ptr * 2 + 1] == -1) {
+            float cur_near = overall_near, cur_far = overall_far;
+            GetIntersection(rays_o, rays_d, node.center_, node.extend_len_, &cur_near, &cur_far);
+            bool can_live_stack = cur_near < cur_far;
 
-        if (can_live_stack) {
-        int child_ptr = 0;
-        while (child_ptr < 8 && node.child_[search_order[child_ptr]] < 0) {
-            child_ptr++;
-        }
-        if (child_ptr < 8) {   // Has childs, push stack
-            stack_info[stack_ptr * 2 + 1] = child_ptr;
-            stack_ptr++;
-            stack_info[stack_ptr * 2] = node.child_[search_order[child_ptr]];
-            stack_info[stack_ptr * 2 + 1] = -1;
-        }
-        else {
-            // Leaf node
-            if (node.trans_idx_ >= 0) {
-            if (FILL) {
-                oct_intersect_idx[intersect_cnt] = u;
-                oct_intersect_near_far[intersect_cnt][0] = cur_near;
-                oct_intersect_near_far[intersect_cnt][1] = cur_far;
+            if (can_live_stack) {
+                int child_ptr = 0;
+                while (child_ptr < 8 && node.child_[search_order[child_ptr]] < 0) {
+                    child_ptr++;
+                }
+                if (child_ptr < 8) {   // Has childs, push stack
+                    stack_info[stack_ptr * 2 + 1] = child_ptr;
+                    stack_ptr++;
+                    stack_info[stack_ptr * 2] = node.child_[search_order[child_ptr]];
+                    stack_info[stack_ptr * 2 + 1] = -1;
+                }
+                else {
+                    // Leaf node
+                    if (node.trans_idx_ >= 0) {
+                        if (FILL) {
+                            oct_intersect_idx[intersect_cnt] = u;
+                            oct_intersect_near_far[intersect_cnt][0] = cur_near;
+                            oct_intersect_near_far[intersect_cnt][1] = cur_far;
+                        }
+                        intersect_cnt++;
+                    }
+                    stack_ptr--;
+                }
             }
-            intersect_cnt++;
+            else {
+                stack_ptr--;
             }
-            stack_ptr--;
-        }
         }
         else {
-        stack_ptr--;
+            int child_ptr = stack_info[stack_ptr * 2 + 1] + 1;
+            while (child_ptr < 8 && node.child_[search_order[child_ptr]] < 0) {
+                child_ptr++;
+            }
+            if (child_ptr < 8) {
+                stack_info[stack_ptr * 2 + 1] = child_ptr;
+                stack_ptr++;
+                stack_info[stack_ptr * 2] = node.child_[search_order[child_ptr]];
+                stack_info[stack_ptr * 2 + 1] = -1;
+            }
+            else {
+                stack_ptr--;
+            }
         }
-    }
-    else {
-        int child_ptr = stack_info[stack_ptr * 2 + 1] + 1;
-        while (child_ptr < 8 && node.child_[search_order[child_ptr]] < 0) {
-        child_ptr++;
-        }
-        if (child_ptr < 8) {
-        stack_info[stack_ptr * 2 + 1] = child_ptr;
-        stack_ptr++;
-        stack_info[stack_ptr * 2] = node.child_[search_order[child_ptr]];
-        stack_info[stack_ptr * 2 + 1] = -1;
-        }
-        else {
-        stack_ptr--;
-        }
-    }
     }
 
     if (!FILL) {
-    // Phase 1
-    int idx_start = atomicAdd(oct_idx_counter, intersect_cnt);
-    oct_idx_start_end[0] = idx_start;
-    oct_idx_start_end[1] = idx_start + intersect_cnt;
+        // Phase 1
+        int idx_start = atomicAdd(oct_idx_counter, intersect_cnt);
+        oct_idx_start_end[0] = idx_start;
+        oct_idx_start_end[1] = idx_start + intersect_cnt;
     }
     else {
-    // Phase 2
-    oct_idx_start_end[1] = oct_idx_start_end[0] + intersect_cnt;
+        // Phase 2
+        oct_idx_start_end[1] = oct_idx_start_end[0] + intersect_cnt;
     }
 }
 
@@ -378,12 +378,12 @@ SampleResultFlex OctreeMap::GetSamples(const Tensor& rays_o_raw, const Tensor& r
 
     Tensor rays_noise;
     if (global_data_->mode_ == RunningMode::VALIDATE) {
-    rays_noise = torch::ones({ MAX_SAMPLE_PER_RAY + n_rays + 10 }, CUDAFloat);
+        rays_noise = torch::ones({ MAX_SAMPLE_PER_RAY + n_rays + 10 }, CUDAFloat);
     }
     else {
-    rays_noise = ((torch::rand({ MAX_SAMPLE_PER_RAY + n_rays + 10 }, CUDAFloat) - .5f) + 1.f).contiguous();
-    float sampled_oct_per_ray = float(n_all_oct_intersect) / float(n_rays);
-    global_data_->sampled_oct_per_ray_ = global_data_->sampled_oct_per_ray_ * .9f + sampled_oct_per_ray * .1f;
+        rays_noise = ((torch::rand({ MAX_SAMPLE_PER_RAY + n_rays + 10 }, CUDAFloat) - .5f) + 1.f).contiguous();
+        float sampled_oct_per_ray = float(n_all_oct_intersect) / float(n_rays);
+        global_data_->sampled_oct_per_ray_ = global_data_->sampled_oct_per_ray_ * .9f + sampled_oct_per_ray * .1f;
     }
     rays_noise.mul_(global_data_->ray_march_fineness_);
 
@@ -440,7 +440,44 @@ SampleResultFlex OctreeMap::GetSamples(const Tensor& rays_o_raw, const Tensor& r
     };
 }
 
+__global__ void GetEdgeSamplesKernel(int n_pts, OctreeEdge* edge_pool, OctreeTransInfo* trans, int* edge_indices, Wec2f* edge_coords,
+                                     Wec3f* out_pts, int* out_idx) {
+  int pts_idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (pts_idx >= n_pts) { return; }
+  int edge_idx = edge_indices[pts_idx];
+  edge_pool += edge_idx;
+  Wec3f world_pts = edge_pool->center_ + edge_pool->dir_0_ * edge_coords[pts_idx][0] + edge_pool->dir_1_ * edge_coords[pts_idx][1];
+  Wec3f warp_pts_a, warp_pts_b;
+  int a = edge_pool->t_idx_a_; int b = edge_pool->t_idx_b_;
+  QueryFrameTransform(trans[a], world_pts, &warp_pts_a);
+  QueryFrameTransform(trans[b], world_pts, &warp_pts_b);
 
+  out_pts[pts_idx * 2] = warp_pts_a;
+  out_pts[pts_idx * 2 + 1] = warp_pts_b;
+  out_idx[pts_idx * 2] = a;
+  out_idx[pts_idx * 2 + 1] = b;
+}
+
+std::tuple<Tensor, Tensor> OctreeMap::GetEdgeSamples(int n_pts) {
+  int n_edges = octree_->octree_edges_.size();
+  Tensor edge_idx = torch::randint(0, n_edges, { n_pts }, CUDAInt).contiguous();
+  Tensor edge_coord = (torch::rand({n_pts, 2}, CUDAFloat) * 2.f - 1.f).contiguous();
+  Tensor out_pts = torch::empty({n_pts, 2, 3}, CUDAFloat).contiguous();
+  Tensor out_idx = torch::empty({n_pts, 2}, CUDAInt).contiguous();
+
+  dim3 block_dim = LIN_BLOCK_DIM(n_pts);
+  dim3 grid_dim  = LIN_GRID_DIM(n_pts);
+
+  GetEdgeSamplesKernel<<<grid_dim, block_dim>>>(n_pts,
+                                               RE_INTER(OctreeEdge*, octree_->octree_edges_gpu_.data_ptr()),
+                                               RE_INTER(OctreeTransInfo*, octree_->octree_trans_gpu_.data_ptr()),
+                                               edge_idx.data_ptr<int>(),
+                                               RE_INTER(Wec2f*, edge_coord.data_ptr()),
+                                               RE_INTER(Wec3f*, out_pts.data_ptr()),
+                                               out_idx.data_ptr<int>());
+
+  return { out_pts, out_idx };
+}
 
 
 __global__ void MarkInvalidNodes(int n_nodes, int* node_weight_stats, int* node_alpha_stats, OctreeNode* nodes) 
@@ -587,6 +624,51 @@ void OctreeMap::UpdateOctNodes(const SampleResultFlex& sample_result,
     if (global_data_->iter_step_ % compact_freq_ == 0) {
     octree_->ProcOctree(true, false, false);
     }
+}
+
+
+__global__ void CountValidPts(int n_rays, int* idx_bounds, int* mask, int* out_cnt) {
+  int ray_idx = LINEAR_IDX();
+  if (ray_idx >= n_rays) return;
+  int idx_start = idx_bounds[ray_idx * 2];
+  int idx_end   = idx_bounds[ray_idx * 2 + 1];
+  int cnt = 0;
+  for (int i = idx_start; i < idx_end; i++) {
+    cnt += mask[i];
+  }
+  out_cnt[ray_idx] = cnt;
+}
+
+torch::Tensor FilterIdxBounds(const torch::Tensor& idx_bounds,
+                              const torch::Tensor& mask) {
+  int n_rays = idx_bounds.size(0);
+  // Tensor sorted_idx_bounds, sorted_idx;
+  // std::tie(sorted_idx_bounds, sorted_idx) = torch::sort(idx_bounds, true, 0, false);
+  // CHECK(torch::equal(sorted_idx.index({Slc(), 0}), sorted_idx.index({Slc(), 1})));
+  // sorted_idx = sorted_idx.index({Slc(), 0}).contiguous();
+  // Tensor inv_idx = torch::zeros({ n_rays }, CUDALong);
+  // {
+  //   dim3 grid_dim = LIN_GRID_DIM(n_rays);
+  //   dim3 block_dim = LIN_BLOCK_DIM(n_rays);
+  //   InvPermutation<<<grid_dim, block_dim>>>(n_rays, inv_idx.data_ptr<int64_t>(), sorted_idx.data_ptr<int64_t>());
+  // }
+
+  // Tensor sorted_idx_bounds = idx_bounds.clone().contiguous();
+  Tensor mask_int = mask.to(torch::kInt32).contiguous();
+
+  Tensor valid_cnt = torch::zeros({ n_rays }, CUDAInt);
+  dim3 grid_dim = LIN_GRID_DIM(n_rays);
+  dim3 block_dim = LIN_BLOCK_DIM(n_rays);
+  CountValidPts<<<grid_dim, block_dim>>>(n_rays,
+                                         idx_bounds.data_ptr<int>(),
+                                         mask_int.data_ptr<int>(),
+                                         valid_cnt.data_ptr<int>());
+  valid_cnt = torch::cumsum(valid_cnt, 0);
+  Tensor new_idx_bounds = torch::zeros({ n_rays, 2 }, CUDAInt);
+  new_idx_bounds.index_put_({Slc(), 1}, valid_cnt);
+  new_idx_bounds.index_put_({Slc(1, None), 0}, valid_cnt.index({Slc(0, -1)}));
+  return new_idx_bounds;
+  // return new_idx_bounds.index({inv_idx}).contiguous();
 }
 
 } // namespace AutoStudio

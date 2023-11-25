@@ -73,6 +73,10 @@ Dataset::Dataset(GlobalData *global_data):
   train_set_ = train_set_tensor.to(torch::kLong).contiguous();
 
   sampler_ = sampler->GetInstance(images, train_set_.to(torch::kCUDA));
+
+  auto bounds = GetFullData_Tensor("bound", true);
+  bounds.clamp(1e-2f, 1e9f);
+  global_data_->near_ = bounds.min().item<float>();
   // auto [train_rays, train_rgbs] = sampler_->GetTrainRays();
   // std::cout << train_rays.origins.sizes() << std::endl;
 }
@@ -130,6 +134,76 @@ Dataset::DataCode Dataset::DataShit(std::string dType)
   if(dType == "bound") return DataCode::BOUND;
   return DataCode::NONE;
 }
+
+Tensor Dataset::GetFullData_Tensor(std::string dType, bool device)
+{
+  std::vector<Tensor> outs;
+  Tensor outs_tensor;
+  switch (DataShit(dType))
+  {
+    case DataCode::C2W:
+      for (int i = 0; i < n_camera_; ++i) {
+        auto camera = cameras_[i];
+        auto images = camera.images_;
+        for (int j = 0; j < camera.n_images_; ++j) {
+          outs.push_back(images[j].c2w_);
+        }
+      }
+      outs_tensor = torch::stack(outs, 0).reshape({-1, 3, 4});
+      break;
+    
+    case DataCode::W2C:
+      for (int i = 0; i < n_camera_; ++i) {
+        auto camera = cameras_[i];
+        auto images = camera.images_;
+        for (int j = 0; j < camera.n_images_; ++j) {
+          Tensor w2c = torch::eye(4, CUDAFloat).contiguous();
+          w2c.index_put_({Slc(0, 3), Slc()}, images[j].c2w_.clone());
+          w2c = torch::linalg_inv(w2c);
+          w2c = w2c.index({Slc(0, 3), Slc()}).contiguous();
+          outs.push_back(w2c);
+        }
+      }
+      outs_tensor = torch::stack(outs, 0).reshape({-1, 3, 4});
+      break;
+    
+    case DataCode::INTRI:
+      for (int i = 0; i < n_camera_; ++i) {
+        auto camera = cameras_[i];
+        auto images = camera.images_;
+        for (int j = 0; j < camera.n_images_; ++j) {
+          outs.push_back(images[j].intri_);
+        }
+      }
+      outs_tensor = torch::stack(outs, 0).reshape({-1, 3, 3});
+      break;
+
+    case DataCode::BOUND:
+      for (int i = 0; i < n_camera_; ++i){
+        auto camera = cameras_[i];
+        auto images = camera.images_;
+        for (int j = 0; j < camera.n_images_; ++j){
+          Tensor bounds = torch::stack({
+                                  torch::full({ 1 }, images[j].near_, CPUFloat),
+                                  torch::full({ 1 }, images[j].far_,  CPUFloat)
+                              }, -1).contiguous();
+          outs.push_back(bounds);
+        }
+      }
+      outs_tensor = torch::stack(outs, 0).reshape({-1, 2});
+      // std::cout << outs_tensor <<  std::endl;
+      break;
+
+  
+    default:
+      break;
+  }
+  if (device == 1) outs_tensor = outs_tensor.to(torch::kFloat32).to(torch::kCUDA).contiguous();
+  else outs_tensor = outs_tensor.to(torch::kFloat32).contiguous();
+  return outs_tensor;
+}
+
+
 
 Tensor Dataset::GetTrainData_Tensor(std::string dType, bool device)
 {

@@ -53,8 +53,9 @@ Runner::Runner(const std::string& conf_path)
   // dataset_->sampler_->TestRays();
   
   // Model
-  model_pip_ = std::make_unique<ModelPipline>(global_data_.get());
+  model_pip_ = std::make_unique<ModelPipline>(global_data_.get(), dataset_->n_images_);
   std::cout << "pass0" << std::endl;
+  
   //optimize
   optimizer_ = std::make_unique<torch::optim::Adam>(model_pip_->OptimParamGroups());
   std::cout << "pass1" << std::endl;
@@ -117,16 +118,17 @@ void Runner::Train()
     for (; iter_step_ < end_iter_;){
       global_data_->backward_nan_ = false;
       int cur_batch_size = int(pts_batch_size_ / global_data_->meaningful_sampled_pts_per_ray_) >> 4 << 4;
+      std::cout << cur_batch_size << std::endl;
       dataset_->sampler_->batch_size_ = cur_batch_size;
       auto [train_rays, gt_colors, emb_idx] = dataset_->sampler_->GetTrainRays();
       std::cout << "train data size:" << train_rays.origins.sizes() << std::endl;
       std::cout << "train color size:" << gt_colors.sizes() << std::endl;
-      std::cout << "train emb_idx size:" << emb_idx << std::endl;
+      // std::cout << "train emb_idx size:" << emb_idx << std::endl;
 
       Tensor& rays_o = train_rays.origins;
       Tensor& rays_d = train_rays.dirs;
       Tensor& ranges = train_rays.ranges;
-      auto render_result = model_pip_->Render(rays_o, rays_d, ranges, emb_idx);
+      auto render_result = model_pip_->field_->Render(rays_o, rays_d, ranges, emb_idx);
       iter_step_++;
       global_data_->iter_step_ = iter_step_;
     }

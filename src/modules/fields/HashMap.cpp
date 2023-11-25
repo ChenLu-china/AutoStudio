@@ -17,7 +17,6 @@ TORCH_LIBRARY(dec_hash3d_vertex, m)
     m.class_<Hash3DVertexInfo>("Hash3DVertexInfo").def(torch::init());
 }
 
-
 AutoStudio::Hash3DVertex::Hash3DVertex(GlobalData* global_data)
 {   
     /**
@@ -137,17 +136,16 @@ int Hash3DVertex::LoadStates(const std::vector<Tensor>& states, int idx)
 std::vector<torch::optim::OptimizerParamGroup> Hash3DVertex::OptimParamGroups()
 {
     std::vector<torch::optim::OptimizerParamGroup> ret;
-
     float lr = global_data_->learning_rate_;
     {
         auto opt = std::make_unique<torch::optim::AdamOptions>(lr);
         opt->betas() = {0.9, 0.99};
         opt->eps() = 1e-15;
 
-        std::vector<Tensor> params = {feat_pool_};
+        std::vector<Tensor> params = { feat_pool_ };
         ret.emplace_back(std::move(params), std::move(opt));
     }
-
+    
     {
         auto opt = std::make_unique<torch::optim::AdamOptions>(lr);
         opt->betas() = {0.9, 0.99};

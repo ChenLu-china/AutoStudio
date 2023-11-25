@@ -27,7 +27,6 @@ public:
 
     void *dataset_;
 
-
     int n_volumes_ = 1;
     int iter_step_;
     float sampled_oct_per_ray_ = 16.f;

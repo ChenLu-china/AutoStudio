@@ -6,7 +6,7 @@
 *  @brief 
 */
 
-#include "include/TinyMLP.h"
+#include "TinyMLP.h"
 
 #ifdef _MSC_VER
 #pragma warning(push, 0)
@@ -27,7 +27,7 @@
 #include <tiny-cuda-nn/cpp_api.h>
 #include <iostream>
 
-#include "../../Common.h"
+#include "../../../Common.h"
 
 #define CHECK_TS(x) CHECK(x.device().is_cuda()); CHECK(x.is_contiguous())
 
@@ -63,7 +63,7 @@ TORCH_LIBRARY(tmlp_wp, m)
 }
 
 TMLP::TMLP(GlobalData* global_data, int d_in, int d_out, int d_hidden, int n_hidden_layers)
-{
+{   
     global_data_ = global_data;
     d_in_ = d_in;
     d_out_ = d_out;

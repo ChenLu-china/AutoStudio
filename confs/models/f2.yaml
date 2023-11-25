@@ -1,7 +1,14 @@
 hashtype: OctreeMap
+sub_div_milestones: [ 2000, 4000, 6000, 8000, 10000 ]
+compact_freq: 1000
+max_oct_intersect_per_ray: 1024
 bbox_levels: 10
 max_level: 16
 split_dist_thres: 1.5
+sample_l: 3.90625e-3   # 1. / 256.
+scale_by_dis: false
+near: 0.05
+bg_color: rand_noise
 
 fields:
   type: Hash3DAnchored
@@ -10,3 +17,11 @@ fields:
   mlp_hidden_dim: 64
   mlp_out_dim: 16
   n_hidden_layers: 1
+
+shader:
+  type: SHShader
+  d_in: 32
+  d_out: 3
+  d_hidden: 64
+  n_hidden: 2
+  degree: 4

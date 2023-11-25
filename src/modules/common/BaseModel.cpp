@@ -4,7 +4,7 @@
 **/
 
 #include <torch/torch.h>
-#include "./include/BaseModel.h"
+#include "include/BaseModel.h"
 
 
 namespace AutoStudio

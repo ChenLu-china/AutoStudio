@@ -9,7 +9,7 @@
 #include <torch/torch.h>
 #include "../../../Common.h"
 #include "../../../utils/GlobalData.h"
-#include "../../common/include/TinyMLP.h"
+#include "../../common/mlp/TinyMLP.h"
 #include "../../common/include/FieldModel.h"
 
 namespace AutoStudio {

@@ -8,8 +8,7 @@
 #define TINYMLP_H
 
 #include <tiny-cuda-nn/cpp_api.h>
-
-#include "FieldModel.h"
+#include "../include/FieldModel.h"
 
 
 namespace AutoStudio

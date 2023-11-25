@@ -31,6 +31,16 @@ struct SampleResultFlex {
   Tensor first_oct_dis;                 // [ n_rays, 1 ]
 };
 
+struct RenderResult
+{
+    Tensor colors;
+    Tensor first_oct_dis;
+    Tensor disparity;
+    Tensor edge_feats;
+    Tensor depth;
+    Tensor weights;
+    Tensor idx_start_end;
+};
 
 class FieldModel : public BaseModel
 {
@@ -52,6 +62,11 @@ public:
     return Tensor();
   }
 
+  virtual RenderResult Render(const Tensor& rays_o, const Tensor& rays_d, 
+                            const Tensor& ranges, const Tensor& emb_idx) {
+    CHECK(false) << "Not implemented";
+    return { Tensor(), Tensor(), Tensor(), Tensor(), Tensor(), Tensor(), Tensor() };                         
+  }
   /*----------------------------------------------Get Points for all-----------------------------------------------------------*/
     
   virtual SampleResultFlex GetSamples(const Tensor& rays_o, const Tensor& rays_d) {
@@ -81,6 +96,7 @@ public:
     
   /*----------------------------------------Sample Point function for Streetsurf-----------------------------------------------*/
 
+  enum BGColorType { white, black, rand_noise };
 
   GlobalData* global_data_;
 };

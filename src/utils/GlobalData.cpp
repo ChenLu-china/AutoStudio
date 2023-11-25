@@ -13,6 +13,7 @@ namespace AutoStudio
 GlobalData::GlobalData(const std::string &config_file)
 {
     config_ = YAML::LoadFile(config_file);
+    learning_rate_ = config_["train"]["learning_rate"].as<float>();
 }
 
 } // namespace AutoStudio

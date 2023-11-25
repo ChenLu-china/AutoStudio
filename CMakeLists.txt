@@ -60,7 +60,9 @@ include_directories(External/yaml-cpp/include)
 include_directories(External/eigen-3.4.0)
 include(src/dataset/dataset.cmake)
 include(src/utils/utils.cmake)
-include(src/modules/modules.cmake)
+include(src/modules/camera_manager/camera_manager.cmake)
+include(src/modules/common/common.cmake)
+include(src/modules/fields/fields.cmake)
 include(src/pipeline/pipeline.cmake)
 
 list(APPEND SRC_ALL

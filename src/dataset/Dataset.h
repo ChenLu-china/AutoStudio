@@ -36,6 +36,7 @@ public:
     Tensor GetFullC2W_Tensor(bool device);
     Tensor GetFullIntri_Tensor(bool device);
     Tensor GetFullW2C_Tensor(bool device);
+    Tensor GetFullData_Tensor(std::string dType, bool device);
     Tensor GetTrainData_Tensor(std::string dType, bool device);
 
     // tuple<Tensor, Tensor> GenRaysFlex(Tensor c2ws, Tensor w2cs, Tensor intris, int )
