@@ -460,6 +460,7 @@ __global__ void GetEdgeSamplesKernel(int n_pts, OctreeEdge* edge_pool, OctreeTra
 
 std::tuple<Tensor, Tensor> OctreeMap::GetEdgeSamples(int n_pts) {
   int n_edges = octree_->octree_edges_.size();
+  std::cout << "edges number is :" << n_edges << std::endl;
   Tensor edge_idx = torch::randint(0, n_edges, { n_pts }, CUDAInt).contiguous();
   Tensor edge_coord = (torch::rand({n_pts, 2}, CUDAFloat) * 2.f - 1.f).contiguous();
   Tensor out_pts = torch::empty({n_pts, 2, 3}, CUDAFloat).contiguous();
@@ -605,24 +606,24 @@ void OctreeMap::UpdateOctNodes(const SampleResultFlex& sample_result,
     CK_CONT(node_alpha_stats);
 
     {
-    dim3 block_dim = LIN_BLOCK_DIM(n_nodes);
-    dim3 grid_dim  = LIN_GRID_DIM(n_nodes);
-    MarkInvalidNodes<<<grid_dim, block_dim>>>(
-        n_nodes,
-        node_weight_stats.data_ptr<int>(),
-            node_alpha_stats.data_ptr<int>(),
-        RE_INTER(OctreeNode*, octree_->octree_nodes_gpu_.data_ptr()));
+        dim3 block_dim = LIN_BLOCK_DIM(n_nodes);
+        dim3 grid_dim  = LIN_GRID_DIM(n_nodes);
+        MarkInvalidNodes<<<grid_dim, block_dim>>>(
+            n_nodes,
+            node_weight_stats.data_ptr<int>(),
+                node_alpha_stats.data_ptr<int>(),
+            RE_INTER(OctreeNode*, octree_->octree_nodes_gpu_.data_ptr()));
     }
 
     while (!sub_div_milestones_.empty() && sub_div_milestones_.back() <= global_data_->iter_step_) {
-    octree_->ProcOctree(true, true, sub_div_milestones_.back() <= 0);
-    octree_->MarkInvisibleNodes();
-    octree_->ProcOctree(true, false, false);
-    sub_div_milestones_.pop_back();
+        octree_->ProcOctree(true, true, sub_div_milestones_.back() <= 0);
+        octree_->MarkInvisibleNodes();
+        octree_->ProcOctree(true, false, false);
+        sub_div_milestones_.pop_back();
     }
 
     if (global_data_->iter_step_ % compact_freq_ == 0) {
-    octree_->ProcOctree(true, false, false);
+        octree_->ProcOctree(true, false, false);
     }
 }
 

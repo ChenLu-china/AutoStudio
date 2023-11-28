@@ -54,12 +54,9 @@ Runner::Runner(const std::string& conf_path)
   
   // Model
   model_pip_ = std::make_unique<ModelPipline>(global_data_.get(), dataset_->n_images_);
-  std::cout << "pass0" << std::endl;
   
   //optimize
   optimizer_ = std::make_unique<torch::optim::Adam>(model_pip_->OptimParamGroups());
-  std::cout << "pass1" << std::endl;
-
 }
 
 

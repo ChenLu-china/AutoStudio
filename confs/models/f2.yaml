@@ -8,6 +8,7 @@ split_dist_thres: 1.5
 sample_l: 3.90625e-3   # 1. / 256.
 scale_by_dis: false
 near: 0.05
+use_app_emb: false
 bg_color: rand_noise
 
 fields:

@@ -426,9 +426,16 @@ def norm_poses(root_dir, cam_name, num_img, max_depth=None, img_size=None, vis_n
 
         e2w = np.array(get_matrix(ego_info[index][1:4], ego_info[index][4:7], [1.0, 1.0, 1.0]), dtype=np.float32)
         c2w = np.dot(e2w, cam2car)
-        c2w = carla2opengl @ c2w   @ change_mat
+        c2w = carla2opengl @  c2w  @ change_mat
         c2w[1, 0:3] *= -1
         c2w[1, 3] *= -1
+
+        opencv_to_opengl = np.eye(4)
+        opencv_to_opengl[:3 ,:3] = np.array(
+            [[0, 0, 1],
+            [-1, 0, 0],
+            [0, -1, 0]])
+        c2w = c2w @ opencv_to_opengl
         
         intrinsics.append(torch.from_numpy(intrinsic).float())       
         dims.append([img_h, img_w])

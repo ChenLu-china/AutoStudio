@@ -103,7 +103,8 @@ Octree::Octree(int max_depth,
   AddTreeNode(0, 0, Wec3f::Zero(), bbox_side_len);
 
   // construct edge pool for edge point sampling - for TV loss.
-
+  AddTreeEdges();
+  
   // Copy to GPU
   octree_nodes_gpu_ = torch::from_blob(octree_nodes_.data(), 
                                       { int(octree_nodes_.size() * sizeof(OctreeNode)) }, 

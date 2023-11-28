@@ -12,7 +12,7 @@ SHShader::SHShader(GlobalData* global_data)
 
     std::cout << "SHSader::SHShade" << std::endl;
     global_data_ = global_data;
-    auto config =  global_data_->config_["modles"]["shader"];
+    auto config =  global_data->config_["models"]["shader"];
     d_in_ = config["d_in"].as<int>();
     d_out_ = config["d_out"].as<int>();
     degree_ = config["degree"].as<int>();
@@ -24,9 +24,13 @@ SHShader::SHShader(GlobalData* global_data)
 }
 
 Tensor SHShader::Query(const Tensor& feats, const Tensor& dirs)
-{
-    return Tensor();
-}
+{   
+    Tensor enc = SHEncode(dirs);
+    Tensor input = torch::cat({feats, enc}, -1);
+    Tensor output = mlp_->Query(input);
+    float eps = 1e-3f;
+    return (1.f + 2.f * eps) / (1.f + torch::exp(-output)) - eps;
+} 
 
 
 std::vector<torch::optim::OptimizerParamGroup> SHShader::OptimParamGroups()

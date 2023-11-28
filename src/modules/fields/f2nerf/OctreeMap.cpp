@@ -162,10 +162,8 @@ RenderResult OctreeMap::Render(const Tensor& rays_o,
 
 
         if (global_data_->mode_ == RunningMode::TRAIN) {
-            UpdateOctNodes(sample_result_,
-                                        weights.detach(),
-                                        alphas.detach());
-
+            UpdateOctNodes(sample_result_, weights.detach(), alphas.detach());
+            
             float meaningful_per_ray = mask.to(torch::kFloat32).sum().item<float>();
             meaningful_per_ray /= n_rays;
             global_data_->meaningful_sampled_pts_per_ray_ =
@@ -198,7 +196,6 @@ RenderResult OctreeMap::Render(const Tensor& rays_o,
         scene_feat = hashmap_->AnchoredQuery(pts, anchors);  // [n_pts, feat_dim];
     }
 
-
     Tensor idx_start_end = sample_result_early_stop.pts_idx_bounds;
 
     Tensor sampled_density = DensityAct(scene_feat.index({ Slc(), Slc(0, 1) }));
@@ -210,7 +207,6 @@ RenderResult OctreeMap::Render(const Tensor& rays_o,
         Tensor all_emb_idx = CustomOps::ScatterIdx(n_all_pts, sample_result_early_stop.pts_idx_bounds, emb_idx);
         shading_feat = CustomOps::ScatterAdd(app_emb_, all_emb_idx, shading_feat);
     }
-
     Tensor sampled_colors = shader_->Query(shading_feat, dirs);
     if (global_data_->gradient_scaling_progress_ < 1.) {
         sampled_density = CustomOps::GradientScaling(sampled_density, idx_start_end,
@@ -231,13 +227,13 @@ RenderResult OctreeMap::Render(const Tensor& rays_o,
     colors = colors + last_trans.unsqueeze(-1) * bg_color;
     Tensor disparity = FlexOps::Sum(weights / sampled_t, idx_start_end);
     Tensor depth = FlexOps::Sum(weights * sampled_t, idx_start_end) / (1.f - last_trans + 1e-4f);
-
+    std::cout << "PASS " << std::endl;
     CHECK_NOT_NAN(colors);
 
 
     std::cout << sample_result_.pts.sizes()[0] << std::endl;
     
-    return { Tensor(), Tensor(), Tensor(), Tensor(), Tensor(), Tensor(), Tensor() };
+    return { colors, sample_result_early_stop.first_oct_dis, disparity, edge_feat, depth, weights, idx_start_end };
 }
 
 
@@ -277,7 +273,6 @@ std::vector<torch::optim::OptimizerParamGroup> OctreeMap::OptimParamGroups() {
         auto cur_params = model->OptimParamGroups();
         for (const auto& para_group : cur_params){
             ret.emplace_back(para_group);
-            std::cout << ret.size() <<std::endl;
         }
     }
 

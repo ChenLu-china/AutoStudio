@@ -187,6 +187,13 @@ def norm_poses(root_dir, cam_name, num_img, max_depth=None, img_size=None, vis_n
         c2w[1, 0:3] *= -1
         c2w[1, 3] *= -1
         
+        # opencv_to_opengl = np.eye(4)
+        # opencv_to_opengl[:3 ,:3] = np.array(
+        #     [[1, 0, 0],
+        #     [0, -1, 0],
+        #     [0, 0, -1]])
+        # c2w = c2w @ opencv_to_opengl
+
         intrinsics.append(torch.from_numpy(intrinsic).float())       
         dims.append([img_h, img_w])
         poses.append(torch.from_numpy(c2w).float())
