@@ -1,3 +1,8 @@
+/**
+* This file is part of autostudio
+* Copyright (C) 
+**/
+
 
 #include <string>
 #include <iostream>
@@ -7,6 +12,7 @@
 #include "Pipeline.h"
 
 #include "../utils/GlobalData.h"
+#include "../utils/CustomOps/CustomOps.h"
 
 namespace fs = std::experimental::filesystem::v1;
 
@@ -125,9 +131,69 @@ void Runner::Train()
       Tensor& rays_o = train_rays.origins;
       Tensor& rays_d = train_rays.dirs;
       Tensor& ranges = train_rays.ranges;
+      
       auto render_result = model_pip_->field_->Render(rays_o, rays_d, ranges, emb_idx);
+      
+      Tensor pred_colors = render_result.colors.index({Slc(0, cur_batch_size)});
+      Tensor disparity = render_result.disparity;
+      Tensor color_loss = torch::sqrt((gt_colors - pred_colors).square() + 1e-4f).mean();
+      Tensor disparity_loss = disparity.square().mean();
+      Tensor edge_feats = render_result.edge_feats;
+      Tensor tv_loss = (edge_feats.index({Slc(), 0}) - edge_feats.index({Slc(), 1})).square().mean();
+      
+      Tensor sampled_weights = render_result.weights;
+      Tensor idx_start_end = render_result.idx_start_end;
+      Tensor sampled_var = CustomOps::WeightVar(sampled_var, idx_start_end);
+      Tensor var_loss = (sampled_var + 1e-2).sqrt().mean();
+      
+      float var_loss_weight = 0.f;
+      if (iter_step_ > var_loss_end_) {
+        var_loss_weight = var_loss_weight_;
+      }
+      else if (iter_step_ > var_loss_start_) {
+        var_loss_weight = float(iter_step_ - var_loss_start_) / float(var_loss_end_ - var_loss_start_) * var_loss_weight_;
+      }
+      
+      Tensor loss = color_loss + var_loss * var_loss_weight + 
+                    disparity_loss * disp_loss_weight_ + 
+                    tv_loss * tv_loss_weight_;
+
+      float mse = (pred_colors - gt_colors).square().mean().item<float>();
+      float psnr = 20.f * std::log10(1 / std::sqrt(mse));
+      psnr_smooth = psnr_smooth < 0.f ? psnr : psnr * .1f + psnr_smooth * .9f;
+      CHECK(!std::isnan(pred_colors.mean().item<float>()));
+      CHECK(!std::isnan(gt_colors.mean().item<float>()));
+      CHECK(!std::isnan(mse));
+      
+      if (loss.requires_grad()){
+        optimizer_->zero_grad();
+        loss.backward();
+        if (global_data_->backward_nan_){
+          std::cout << "Nan!" << std::endl;
+        }
+        else{
+          optimizer_->step();
+        }
+      }
+      mse_records.push_back(mse);
+
       iter_step_++;
       global_data_->iter_step_ = iter_step_;
+
+      if (iter_step_ % report_freq_ == 0) {
+        std::cout << fmt::format(
+            "Iter: {:>6d} PSNR: {:.2f} NRays: {:>5d} OctSamples: {:.1f} Samples: {:.1f} MeaningfulSamples: {:.1f} IPS: {:.1f} LR: {:.4f}",
+            iter_step_,
+            psnr_smooth,
+            cur_batch_size,
+            global_data_pool_->sampled_oct_per_ray_,
+            global_data_pool_->sampled_pts_per_ray_,
+            global_data_pool_->meaningful_sampled_pts_per_ray_,
+            1.f / time_per_iter,
+            optimizer_->param_groups()[0].options().get_lr())
+                  << std::endl;
+      }
+      UpdateAdaParams();
     }
   }
 }
