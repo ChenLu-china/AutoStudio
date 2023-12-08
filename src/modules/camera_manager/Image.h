@@ -24,9 +24,6 @@ public:
     std::tuple<Tensor, Tensor> Img2WorldRay(int res_w, int res_h);
     std::tuple<Tensor, Tensor> Img2WorldRayFlex(const Tensor& ij);
 
-    Tensor ReadImageTensor(const std::string& image_path);
-    bool WriteImageTensor(const std::string& image_path, Tensor img);
-    
     void toHost();
     void toCUDA();
 
@@ -36,6 +33,9 @@ public:
     Tensor img_tensor_, c2w_, w2c_, intri_, dist_param_;
     
 };
+
+Tensor ReadImageTensor(const std::string& image_path);
+bool WriteImageTensor(const std::string& image_path, Tensor img);
 
 } // namespace AutoStudio
 

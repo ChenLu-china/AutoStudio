@@ -6,13 +6,15 @@
 
 #include <string>
 #include <iostream>
+#include <fmt/core.h>
 #include <torch/torch.h>
 #include <experimental/filesystem>
 
 #include "Pipeline.h"
-
+#include "../utils/cnpy.h"
 #include "../utils/GlobalData.h"
 #include "../utils/CustomOps/CustomOps.h"
+#include "../modules/camera_manager/Image.h"
 
 namespace fs = std::experimental::filesystem::v1;
 
@@ -63,6 +65,14 @@ Runner::Runner(const std::string& conf_path)
   
   //optimize
   optimizer_ = std::make_unique<torch::optim::Adam>(model_pip_->OptimParamGroups());
+
+  // if (config["is_continue"].as<bool>()){
+  //   LoadCheckpoint(base_exp_dir_ + "/checkpoints/latest");
+  // }
+  // if (config["reset"] && config["reset"].as<bool>()){
+  //   model_pip_->Reset();
+  // }
+  
 }
 
 
@@ -115,17 +125,19 @@ void Runner::Train()
   
   float psnr_smooth = -1.0;
   UpdateAdaParams();
+  std::cout << end_iter_ << std::endl;
 
   {
     global_data_ -> iter_step_ = iter_step_;
     for (; iter_step_ < end_iter_;){
       global_data_->backward_nan_ = false;
+
       int cur_batch_size = int(pts_batch_size_ / global_data_->meaningful_sampled_pts_per_ray_) >> 4 << 4;
-      std::cout << cur_batch_size << std::endl;
+      // std::cout << cur_batch_size << std::endl;
       dataset_->sampler_->batch_size_ = cur_batch_size;
       auto [train_rays, gt_colors, emb_idx] = dataset_->sampler_->GetTrainRays();
-      std::cout << "train data size:" << train_rays.origins.sizes() << std::endl;
-      std::cout << "train color size:" << gt_colors.sizes() << std::endl;
+      // std::cout << "train data size:" << train_rays.origins.sizes() << std::endl;
+      // std::cout << "train color size:" << gt_colors.sizes() << std::endl;
       // std::cout << "train emb_idx size:" << emb_idx << std::endl;
 
       Tensor& rays_o = train_rays.origins;
@@ -143,7 +155,7 @@ void Runner::Train()
       
       Tensor sampled_weights = render_result.weights;
       Tensor idx_start_end = render_result.idx_start_end;
-      Tensor sampled_var = CustomOps::WeightVar(sampled_var, idx_start_end);
+      Tensor sampled_var = CustomOps::WeightVar(sampled_weights, idx_start_end);
       Tensor var_loss = (sampled_var + 1e-2).sqrt().mean();
       
       float var_loss_weight = 0.f;
@@ -157,7 +169,7 @@ void Runner::Train()
       Tensor loss = color_loss + var_loss * var_loss_weight + 
                     disparity_loss * disp_loss_weight_ + 
                     tv_loss * tv_loss_weight_;
-
+      std::cout << loss.item<float>() << std::endl;
       float mse = (pred_colors - gt_colors).square().mean().item<float>();
       float psnr = 20.f * std::log10(1 / std::sqrt(mse));
       psnr_smooth = psnr_smooth < 0.f ? psnr : psnr * .1f + psnr_smooth * .9f;
@@ -170,6 +182,7 @@ void Runner::Train()
         loss.backward();
         if (global_data_->backward_nan_){
           std::cout << "Nan!" << std::endl;
+          continue;
         }
         else{
           optimizer_->step();
@@ -179,6 +192,23 @@ void Runner::Train()
 
       iter_step_++;
       global_data_->iter_step_ = iter_step_;
+   
+      if (iter_step_ % stats_freq_ == 0){
+        cnpy::npy_save(base_exp_dir_ + "/stats.npy", mse_records.data(), {mse_records.size()});
+      }
+      
+      if (iter_step_ % vis_freq_ == 0){
+        int t = iter_step_ / vis_freq_;
+        int vis_idx;
+        vis_idx = (iter_step_ / vis_freq_) % dataset_->test_set_.sizes()[0];
+        vis_idx = dataset_->test_set_.index({vis_idx}).item<int>();
+        VisualizeImage(vis_idx);
+      }
+      
+      if (iter_step_ % save_freq_ == 0){
+        SaveCheckpoint();
+      }
+      // time_per_iter = time_per_iter * 0.6f + clock.TimeDuration() * 0.4f;
 
       if (iter_step_ % report_freq_ == 0) {
         std::cout << fmt::format(
@@ -186,16 +216,25 @@ void Runner::Train()
             iter_step_,
             psnr_smooth,
             cur_batch_size,
-            global_data_pool_->sampled_oct_per_ray_,
-            global_data_pool_->sampled_pts_per_ray_,
-            global_data_pool_->meaningful_sampled_pts_per_ray_,
+            global_data_->sampled_oct_per_ray_,
+            global_data_->sampled_pts_per_ray_,
+            global_data_->meaningful_sampled_pts_per_ray_,
             1.f / time_per_iter,
             optimizer_->param_groups()[0].options().get_lr())
                   << std::endl;
       }
       UpdateAdaParams();
+      std::cout << "loop" << std::endl;
     }
+    YAML::Node info_data;
+
+    // std::ofstream info_fout(base_exp_dir_ + "/train_info.txt");
+    // info_fout << watch.TimeDuration() << std::endl;
+    // info_fout.close();
   }
+
+  std::cout << "Train done, test." <<std::endl;
+    // TestImages();
 }
 
 void Runner::Execute()
@@ -207,6 +246,97 @@ void Runner::Execute()
   }
 }
 
+std::tuple<Tensor, Tensor, Tensor> Runner::RenderWholeImage(Tensor rays_o, Tensor rays_d, Tensor ranges)
+{
+  torch::NoGradGuard no_grad_gaurd;
+  rays_o = rays_o.to(torch::kCPU);
+  rays_d = rays_d.to(torch::kCPU);
+  ranges = ranges.to(torch::kCPU);
+
+  const int n_rays = rays_d.sizes()[0];
+  Tensor pred_colors = torch::zeros({n_rays, 3}, CPUFloat);
+  Tensor first_oct_disp = torch::full({n_rays, 1}, 1.f, CPUFloat);
+  Tensor pred_disp = torch::zeros({n_rays, 1}, CPUFloat);
+
+  const int ray_batch_size = 8192;
+  for (int i =0; i< n_rays; i += ray_batch_size){
+    int i_high = std::min(i + ray_batch_size, n_rays);
+    Tensor cur_rays_o = rays_o.index({Slc(i, i_high)}).to(torch::kCUDA).contiguous();
+    Tensor cur_rays_d = rays_d.index({Slc(i, i_high)}).to(torch::kCUDA).contiguous();
+    Tensor cur_ranges = ranges.index({Slc(i, i_high)}).to(torch::kCUDA).contiguous();
+
+    auto render_result = model_pip_->field_->Render(cur_rays_o, cur_rays_d, cur_ranges, Tensor());
+    Tensor colors = render_result.colors.detach().to(torch::kCPU);
+    Tensor disp = render_result.disparity.detach().to(torch::kCPU);
+
+    pred_colors.index_put_({Slc(i, i_high)}, colors);
+    pred_disp.index_put_({Slc(i, i_high)}, disp.unsqueeze(-1));
+    if (!render_result.first_oct_dis.sizes().empty()) {
+      Tensor& ret_first_oct_dis = render_result.first_oct_dis;
+      if (ret_first_oct_dis.has_storage()) {
+        Tensor cur_first_oct_dis = render_result.first_oct_dis.detach().to(torch::kCPU);
+        first_oct_disp.index_put_({Slc(i, i_high)}, cur_first_oct_dis);
+      }
+    }
+  }
+  pred_disp = pred_disp / pred_disp.max();
+  first_oct_disp = first_oct_disp.min() / first_oct_disp;
+
+  return { pred_colors, first_oct_disp, pred_disp };
+}
+
+
+void Runner::VisualizeImage(int idx)
+{
+  torch::NoGradGuard no_grad_guard;
+  auto prev_mode = global_data_->mode_;
+  global_data_->mode_ = RunningMode::VALIDATE;
+  auto [test_rays, rgb_gt] = dataset_->sampler_->TestRays(idx);
+  auto [pred_colors, first_oct_dis, pred_disps] = RenderWholeImage(test_rays.origins, test_rays.dirs, test_rays.ranges);
+  
+  auto [H, W] = dataset_->sampler_->Get_HW(idx);
+
+  Tensor img_tensor = torch::cat({dataset_->sampler_->images_[idx].img_tensor_.to(torch::kCPU).reshape({H, W, 3}),
+                                  pred_colors.reshape({H, W, 3}),
+                                  first_oct_dis.reshape({H, W, 1}).repeat({1, 1, 3}),
+                                  pred_disps.reshape({H, W, 1}).repeat({1, 1, 3})}, 1);
+  fs::create_directories(base_exp_dir_ + "/images");
+  WriteImageTensor(base_exp_dir_ + "/images/" + fmt::format("{}_{}.png", iter_step_, idx), img_tensor);
+  
+  global_data_->mode_ = prev_mode;
+}
+
+void Runner::LoadCheckpoint(const std::string& path)
+{
+  {
+    Tensor scalars;
+    torch::load(scalars, path + "/scalars.pt");
+    iter_step_ = std::round(scalars[0].item<float>());
+    UpdateAdaParams();
+  }
+
+  {
+    std::vector<Tensor> scene_states;
+    torch::load(scene_states, path + "/model.pt");
+    model_pip_->LoadStates(scene_states, 0);
+  }
+}
+
+void Runner::SaveCheckpoint()
+{
+  std::string output_dir = base_exp_dir_ + fmt::format("/checkpoints/{:0>8d}", iter_step_);
+  fs::create_directories(output_dir);
+  // scene
+  torch::save(model_pip_->States(), output_dir + "/model.pt");
+  fs::create_symlink(output_dir + "/model.pt", base_exp_dir_ + "/checkpoints/latest/model.pt");
+  // optimizer
+  // torch::save(*(optimizer_), output_dir + "optimizer.pt");
+  // other scalars
+  Tensor scalars = torch::empty({1}, CPUFloat);
+  scalars.index_put_({0}, float(iter_step_));
+  torch::save(scalars, output_dir + "/scalars.pt");
+  fs::create_symlink(output_dir + "/scalars.pt", base_exp_dir_ + "/checkpoints/lasest/scalars.pt");
+}
 
 
 } //namespace AutoStudio

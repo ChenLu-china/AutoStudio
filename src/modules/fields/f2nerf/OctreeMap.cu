@@ -460,7 +460,6 @@ __global__ void GetEdgeSamplesKernel(int n_pts, OctreeEdge* edge_pool, OctreeTra
 
 std::tuple<Tensor, Tensor> OctreeMap::GetEdgeSamples(int n_pts) {
   int n_edges = octree_->octree_edges_.size();
-  std::cout << "edges number is :" << n_edges << std::endl;
   Tensor edge_idx = torch::randint(0, n_edges, { n_pts }, CUDAInt).contiguous();
   Tensor edge_coord = (torch::rand({n_pts, 2}, CUDAFloat) * 2.f - 1.f).contiguous();
   Tensor out_pts = torch::empty({n_pts, 2, 3}, CUDAFloat).contiguous();

@@ -69,10 +69,13 @@ Dataset::Dataset(GlobalData *global_data):
   auto images = GetFullImage<Image, Image>();
   // auto train_set_1d = Convert2DVec1D<int, int>(train_set);
   auto train_set_1d = Flatten2DVector(train_set);
+  auto test_set_1d = Flatten2DVector(test_set);
   Tensor train_set_tensor = torch::from_blob(train_set_1d.data(), {int(train_set_1d.size())}, OptionInt32);
+  Tensor test_set_tensor = torch::from_blob(test_set_1d.data(), {int(test_set_1d.size())}, OptionInt32);
   train_set_ = train_set_tensor.to(torch::kLong).contiguous();
-
-  sampler_ = sampler->GetInstance(images, train_set_.to(torch::kCUDA));
+  test_set_ = test_set_tensor.to(torch::kLong).contiguous();
+  
+  sampler_ = sampler->GetInstance(images, train_set_.to(torch::kCUDA), test_set_.to(torch::kCUDA));
 
   auto bounds = GetFullData_Tensor("bound", true);
   bounds.clamp(1e-2f, 1e9f);

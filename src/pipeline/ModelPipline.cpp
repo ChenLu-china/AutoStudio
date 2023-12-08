@@ -21,7 +21,7 @@ ModelPipline::ModelPipline(GlobalData* global_data, int n_images)
     // field construction
     field_ = field_factor.CreateField();
 
-    std::cout << "sub_models size is " << sub_models_.size() << std::endl;
+    std::cout << "sub_models size is " << field_->sub_models_.size() << std::endl;
     // sh construction
 
 }

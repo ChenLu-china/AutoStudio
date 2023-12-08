@@ -153,7 +153,7 @@ variable_list TMLPFunction::backward(AutogradContext *ctx,
                                     variable_list grad_output)
 {
     auto info_ptr = ctx->saved_data["tmlp_info"].toCustomClass<TMLPInfo>();
-    auto tmlp_wp = info_ptr -> tmlp_;
+    auto tmlp_wp = info_ptr->tmlp_;
     float scale = tmlp_wp->loss_scale_;
 
     if (!tmlp_wp->tmlp_ctx_.ctx){
@@ -163,7 +163,7 @@ variable_list TMLPFunction::backward(AutogradContext *ctx,
     Tensor dL_doutput = grad_output[0] * scale;
     Tensor& input = tmlp_wp->query_pts_;
     Tensor& output = tmlp_wp->query_output_;
-    Tensor& params = tmlp_wp->params_;
+    Tensor params = tmlp_wp->params_.to(torch::kFloat16);
 
     CHECK_TS(input);
     CHECK_TS(params);
@@ -175,8 +175,8 @@ variable_list TMLPFunction::backward(AutogradContext *ctx,
     CHECK_EQ(output.scalar_type(), torch_type(tmlp_wp->module_->output_precision()));
     CHECK_EQ(dL_doutput.scalar_type(), torch_type(tmlp_wp->module_->output_precision()));
 
-    CHECK_EQ(input.size(0), tmlp_wp->module_->n_input_dims());
-    CHECK_EQ(output.size(0), tmlp_wp->module_->n_output_dims());
+    CHECK_EQ(input.size(1), tmlp_wp->module_->n_input_dims());
+    CHECK_EQ(output.size(1), tmlp_wp->module_->n_output_dims());
     CHECK_EQ(params.size(0), tmlp_wp->module_->n_params());
     CHECK_EQ(output.size(0), input.size(0));
     CHECK_EQ(dL_doutput.size(0), input.size(0));

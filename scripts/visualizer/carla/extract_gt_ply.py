@@ -316,7 +316,7 @@ def get_ray_directions_use_intrinsics(height, width, intrinsics):
     ], -1)
     return directions
 
-def calculate_pc_distance(rays_o, rays_d, k, normalized_depth, rgb, far, scale, max_depth=120.0):
+def calculate_pc_distance(rays_o, rays_d, k, normalized_depth, rgb, far, scale, max_depth=70.0):
     # H, W = img_size
     far = far * scale
 
@@ -349,7 +349,7 @@ def read_mate(root_dir, cam_name, img_size, max_depth, show_pc:bool = None, vis_
     c2ws, intrinsics = norm_poses(root_dir, cam_name, num_img, max_depth=max_depth, img_size=img_size)
     # norm_scale = s2n[0, 0]
     
-    max_show = 10
+    max_show = 1
     all_pcd, cam_pcl_color, pred_all_pcd, pred_cam_pcl_color = [], [], [], []
     frustums = []
     all_rgb, all_depth, all_depth_save = [], [], []
@@ -481,8 +481,10 @@ if __name__ == '__main__':
                     help="")
     parser.add_argument("--scene_name",type=int, default=['0'],
                        help="")
-    parser.add_argument("--cameras", type=str, default=["front_120", "back_100", "leftback_100", "rightback_100", "leftfront_100", "rightfront_100"],
+    parser.add_argument("--cameras", type=str, default=["front_120", "leftfront_100"],
                     help="")
+    # parser.add_argument("--cameras", type=str, default=["front_120", "back_100", "leftback_100", "rightback_100", "leftfront_100", "rightfront_100"],
+    #                 help="")
     parser.add_argument("--img_size", type=int, default=[512, 768], action="append")
     parser.add_argument("--max_depth", type=float, default=100, help="max depth each image can see")
 

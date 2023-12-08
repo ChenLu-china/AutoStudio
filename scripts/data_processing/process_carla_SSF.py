@@ -244,22 +244,20 @@ def depth2localpcd(depth, k, scale, color=None, max_depth=0.05):
     p3d = np.transpose(p3d)
     return p3d, color  
 
-def calculate_pc_distance(rays_o, rays_d, k, normalized_depth, scale, max_depth=0.05):
+def calculate_pc_distance(rays_o, rays_d, k, normalized_depth, far, scale, max_depth=70.0):
     # H, W = img_size
-    far = 1000.0 * scale
-
-    z_depth = normalized_depth.reshape(-1)
-    max_depth_indexes = np.where(z_depth <= max_depth)
+    far = far * scale
+    z_depth = normalized_depth.reshape(-1) * far
+    max_depth_indexes = np.where(z_depth < max_depth)
     z_depth = z_depth[max_depth_indexes]
     rays_o = rays_o[max_depth_indexes]
     rays_d = rays_d[max_depth_indexes]
 
     d_dist = np.linalg.norm(rays_d, axis=-1)
-    distance = z_depth * far * d_dist
+    distance = z_depth * d_dist
 
     viewdirs = rays_d / np.linalg.norm(rays_d, axis=-1, keepdims=True)
-    pcd = rays_o + distance[:, np.newaxis] * viewdirs
-    return pcd
+    return rays_o, viewdirs, distance
 
 def calculate_pc_zbuff(pose, k, normalized_depths, scale):
 
@@ -430,12 +428,12 @@ def norm_poses(root_dir, cam_name, num_img, max_depth=None, img_size=None, vis_n
         c2w[1, 0:3] *= -1
         c2w[1, 3] *= -1
 
-        opencv_to_opengl = np.eye(4)
-        opencv_to_opengl[:3 ,:3] = np.array(
-            [[0, 0, 1],
-            [-1, 0, 0],
-            [0, -1, 0]])
-        c2w = c2w @ opencv_to_opengl
+        # opencv_to_opengl = np.eye(4)
+        # opencv_to_opengl[:3 ,:3] = np.array(
+        #     [[0, 0, 1],
+        #     [-1, 0, 0],
+        #     [0, -1, 0]])
+        # c2w = c2w @ opencv_to_opengl
         
         intrinsics.append(torch.from_numpy(intrinsic).float())       
         dims.append([img_h, img_w])
@@ -478,6 +476,34 @@ def show_pc(p3d, frustums):
     return
 
 
+def process_lidar(root_dir, out_dir, cam_name, img_size, max_depth):
+    
+    depth_dir = root_dir  / f"depth_{cam_name}"
+    pose_dir  = root_dir  / f"pose"
+    num_img = len(os.listdir(depth_dir))
+    
+    c2ws, intrinsics = norm_poses(root_dir, cam_name, num_img, max_depth=max_depth, img_size=img_size)
+    for index in tqdm(torch.arange(0, num_img, 1), desc=f"Loading data ({num_img})"):
+        z_depth = Image.open(depth_dir / f'{index}.png')  # z-buffer depth
+        z_depth = depth2array(np.array(z_depth, dtype=np.float32))
+
+        c2w = c2ws[index]
+        intrinsic = intrinsics[index]
+
+        directions = get_ray_directions_use_intrinsics(img_size[0], img_size[1], intrinsic.numpy())
+        rays_o, rays_d = get_rays(directions, c2w)
+
+        selected_rays_o, selected_rays_d, distance = calculate_pc_distance(rays_o.numpy(), rays_d.numpy(), intrinsic, z_depth, 1000.0, scale=1.0)
+        
+        fake_rays_o = np.zeros_like(selected_rays_d)    
+        img_name = f'{idx_to_frame_str(index)}.npz'
+        npz_path = out_dir / img_name
+
+        np.savez_compressed(npz_path, rays_o=fake_rays_o, rays_d=selected_rays_d, ranges=distance)
+
+
+
+
 def read_mate(root_dir, cam_name, img_size, max_depth, show_pc:bool = False, vis_rgbd:bool = False):
     
     color_dir = root_dir  / f"color_{cam_name}"
@@ -485,7 +511,7 @@ def read_mate(root_dir, cam_name, img_size, max_depth, show_pc:bool = False, vis
     pose_dir  = root_dir  / f"pose"
     
     num_img = len(os.listdir(color_dir))
-
+    
     
     c2ws, intrinsics = norm_poses(root_dir, cam_name, num_img, max_depth=max_depth, img_size=img_size)
     # norm_scale = s2n[0, 0]
@@ -505,9 +531,10 @@ def read_mate(root_dir, cam_name, img_size, max_depth, show_pc:bool = False, vis
         directions = get_ray_directions_use_intrinsics(img_size[0], img_size[1], intrinsic.numpy())
         rays_o, rays_d = get_rays(directions, c2w)
 
-        # z_depth = Image.open(depth_dir / f'{index}.png')  # z-buffer depth
-        # z_depth = depth2array(np.array(z_depth, dtype=np.float32))
-        
+        z_depth = Image.open(depth_dir / f'{index}.png')  # z-buffer depth
+        z_depth = depth2array(np.array(z_depth, dtype=np.float32))
+        all_depth += [z_depth]
+
         if show_pc:
             if index <= max_show and show_pc:
                 pcd = calculate_pc_distance(rays_o.numpy(), rays_d.numpy(), intrinsic, z_depth, scale=scale)
@@ -546,7 +573,7 @@ def read_mate(root_dir, cam_name, img_size, max_depth, show_pc:bool = False, vis
         # all_depth += [torch.from_numpy(rescaled_depth).float()]
         # all_depth_save += [torch.from_numpy(saved_depth).float()]
 
-    return torch.stack(all_rgb, dim=0), c2ws, intrinsics
+    return torch.stack(all_rgb, dim=0), c2ws, intrinsics, np.stack(all_depth, axis=0)
 
 def create_validation_set(src_folder, fraction):
     all_frames = [x.stem for x in sorted(list((src_folder / "color").iterdir()), key=lambda x: int(x.stem))]
@@ -567,126 +594,179 @@ def idx_to_img_filename(frame_index):
 
 
 def main(args):
-    for task in args.tasks:
-        if task == 'data_only':
-            scene_id = args.scene_name
+    for scene_id in args.scene_name:
+        for task in args.tasks:
+            if task == 'data_only':
+                # scene_id = args.scene_name
 
-            dest = Path(args.data_dir) / args.scene_name
-            dest.mkdir(exist_ok=True)
+                dest = Path(args.data_dir) / scene_id
+                dest.mkdir(exist_ok=True)
 
-            
-            output_path = Path(args.output_path) / f"preprocessed" / args.scene_name
-            
-            rgb_dest = output_path / "images"
-            os.makedirs(str(rgb_dest), exist_ok=True)
-            scenario_fpath = output_path / "scenario.pt"
-            
-            scene_objects = dict()
-            scene_observers = dict()
-
-            for camName in args.cameras:
-                cam_dest = rgb_dest / f"camera_{camName}"
-                os.makedirs(str(cam_dest), exist_ok=True)
                 
-                h, w = args.img_size
+                output_path = Path(args.output_path) / f"preprocessed" / scene_id
+                
+                rgb_dest = output_path / "images"
+                os.makedirs(str(rgb_dest), exist_ok=True)
+                scenario_fpath = output_path / "scenario.pt"
+                
+                scene_objects = dict()
+                scene_observers = dict()
 
-                rgbs, poses, intrinsics = read_mate(dest, camName, args.img_size, args.max_depth)
-                str_ = f"camera_{camName}"
-                if str_ not in scene_observers:
-                    scene_observers[str_] = dict(
-                        class_name='Camera', n_frames=0, 
-                        data=dict(hw=[], intr=[], c2w=[], global_frame_ind=[])
-                    )
-                for i in range(len(rgbs)):
+                for camName in args.cameras:
+                    cam_dest = rgb_dest / f"camera_{camName}"
+                    os.makedirs(str(cam_dest), exist_ok=True)
                     
-                    #-------- Process observation groundtruths
-                    img = rgbs[i].reshape(args.img_size + [3])
-                    img_name = idx_to_img_filename(i)
-                    img_path = cam_dest / img_name
-                    img = Image.fromarray((img.numpy() * 255).astype(np.uint8)).save(str(img_path))
+                    h, w = args.img_size
+                    rgbs, poses, intrinsics, z_depths = read_mate(dest, camName, args.img_size, args.max_depth)
+                    
+                    str_ = f"camera_{camName}"
+                    if str_ not in scene_observers:
+                        scene_observers[str_] = dict(
+                            class_name='Camera', n_frames=0, 
+                            data=dict(hw=[], intr=[], c2w=[], global_frame_ind=[])
+                        )
+                    for i in range(len(rgbs)):
+                        
+                        #-------- Process observation groundtruths
+                        img = rgbs[i].reshape(args.img_size + [3])
+                        img_name = idx_to_img_filename(i)
+                        img_path = cam_dest / img_name
+                        img = Image.fromarray((img.numpy() * 255).astype(np.uint8)).save(str(img_path))
 
-                    #------------------------------------------------------
-                    #------------------     Cameras      ------------------
-                    c2w = poses[i]
-                    intri = intrinsics[i]
-                    scene_observers[str_]['n_frames'] += 1
-                    scene_observers[str_]['data']['hw'].append((h, w))
-                    scene_observers[str_]['data']['intr'].append(intri.numpy())
-                    scene_observers[str_]['data']['c2w'].append(c2w.numpy())
-                    scene_observers[str_]['data']['global_frame_ind'].append(i)
-                # create_validation_set(save_path, 0.1)
+                        #------------------------------------------------------
+                        #------------------     Cameras      ------------------
+                        c2w = poses[i]
+                        intri = intrinsics[i]
+                        scene_observers[str_]['n_frames'] += 1
+                        scene_observers[str_]['data']['hw'].append((h, w))
+                        scene_observers[str_]['data']['intr'].append(intri.numpy())
+                        scene_observers[str_]['data']['c2w'].append(c2w.numpy())
+                        scene_observers[str_]['data']['global_frame_ind'].append(i)
+                    
+                    lidar_dest = output_path / "lidars" / f"lidar_{camName}"
+                    os.makedirs(str(lidar_dest), exist_ok=True)
+                    # create_validation_set(save_path, 0.1)
+                    str_ = f"lidar_{camName}"
+                    if str_ not in scene_observers:
+                        scene_observers[str_] = dict(
+                            class_name='RaysLidar', n_frames=0, 
+                            data=dict(l2v=[], l2w=[], global_frame_ind=[])
+                        )
+                    for i in range(len(z_depths)):
+                        z_depth = z_depths[i]
+                        c2w = poses[i]
+                        intrinsic = intrinsics[i]
+
+                        directions = get_ray_directions_use_intrinsics(args.img_size[0], args.img_size[1], intrinsic.numpy())
+                        rays_o, rays_d = get_rays(directions, c2w)
+
+                        selected_rays_o, selected_rays_d, distance = calculate_pc_distance(rays_o.numpy(), rays_d.numpy(), intrinsic, z_depth, 1000.0, scale=1.0)
+                        fake_rays_o = np.zeros_like(selected_rays_d)    
+                        img_name = f'{idx_to_frame_str(i)}.npz'
+                        npz_path = lidar_dest / img_name
+
+                        np.savez_compressed(npz_path, rays_o=fake_rays_o, rays_d=selected_rays_d, ranges=distance)
+                        extrinsic = np.reshape(np.eye(4), [4, 4])
+                        #------------------------------------------------------
+                        #------------------     Lidars      -------------------
+                        scene_observers[str_]['n_frames'] += 1
+                        scene_observers[str_]['data']['l2v'].append(extrinsic)
+                        scene_observers[str_]['data']['l2w'].append(c2w.numpy())
+                        scene_observers[str_]['data']['global_frame_ind'].append(i)
+
+                # world_offset = poses[0].numpy().reshape(4, 4)[:3, 3]
+                print(world_offset)
+                scene_metas = dict(world_offset=world_offset)
+                # scene_metas['dynamic_stats'] = None
+                scene_metas['n_frames'] = i + 1
+
+                scenario = dict()
+                scenario['scene_id'] = scene_id
+                scenario['metas'] = scene_metas
+                scenario['objects'] = scene_objects
+                scenario['observers'] = scene_observers
+                with open(scenario_fpath, 'wb') as f:
+                    pickle.dump(scenario, f)
+                    print(f"=> scenario saved to {scenario_fpath}")
             
-            # world_offset = poses[0].numpy().reshape(4, 4)[:3, 3]\
-            print(world_offset)
-            scene_metas = dict(world_offset=world_offset)
-            # scene_metas['dynamic_stats'] = None
-            scene_metas['n_frames'] = i + 1
+            elif task == 'omni_only':  
+                # do this after data only
+                omnidata_normal = OmnidataModel('normal', args.pretrained_models, device="cuda:0")
+                omnidata_depth = OmnidataModel('depth', args.pretrained_models, device="cuda:0")
 
-            scenario = dict()
-            scenario['scene_id'] = scene_id
-            scenario['metas'] = scene_metas
-            scenario['objects'] = scene_objects
-            scenario['observers'] = scene_observers
-            with open(scenario_fpath, 'wb') as f:
-                pickle.dump(scenario, f)
-                print(f"=> scenario saved to {scenario_fpath}")
-        
-        elif task == 'omni_only':  
-            # do this after data only
-            omnidata_normal = OmnidataModel('normal', args.pretrained_models, device="cuda:0")
-            omnidata_depth = OmnidataModel('depth', args.pretrained_models, device="cuda:0")
+                cameras = ["camera_" + camera for camera in args.cameras]
 
-            cameras = ["camera_" + camera for camera in args.cameras]
+                output_path = Path(args.output_path) / f"preprocessed" / scene_id
 
-            output_path = Path(args.output_path) / f"preprocessed" / args.scene_name
+                for camera in cameras:
+                    print(f'================ Process {camera} camera ================')
 
-            for camera in cameras:
-                print(f'================ Process {camera} camera ================')
+                    img_path = output_path / "images" / camera
+                    assert img_path.exists(), "Don't exist images file, please do data_only first"
 
-                img_path = output_path / "images" / camera
-                assert img_path.exists(), "Don't exist images file, please do data_only first"
+                    gen = (i for i in img_path.glob('*.jpg'))
+                    fnames = sorted(Counter(gen))
+                    
+                    for i, img_fname in tqdm(enumerate(fnames)):
+                        if args.omin_tasks is not None and Path(args.pretrained_models).exists():
+                            for omin_task in args.omin_tasks:
+                                out_path = output_path / f"{omin_task}" / camera
+                                os.makedirs(str(out_path), exist_ok=True)
+            
+                                if omin_task == 'normals':
+                                    prediction = omnidata_normal(img_fname)
+                                elif omin_task == 'depths':
+                                    prediction = omnidata_depth(img_fname)
+                                post_prediction_SSF(prediction, img_fname, out_path)
+            
+            elif task == 'masks_only':
+                from mmseg.apis import inference_segmentor, init_segmentor, show_result_pyplot
+                from mmseg.core.evaluation import get_palette
+                if args.masks_config is None:
+                    args.masks_config = os.path.join(args.segformer_path, 'local_configs', 'segformer', 'B5', 'segformer.b5.1024x1024.city.160k.py')
+                if args.checkpoint is None:
+                    args.checkpoint = os.path.join(args.segformer_path, 'pretrained', 'segformer.b5.1024x1024.city.160k.pth')
 
-                gen = (i for i in img_path.glob('*.jpg'))
-                fnames = sorted(Counter(gen))
+                model = init_segmentor(args.masks_config, args.checkpoint, device=args.device)
+            
+            elif task == 'lidar_only':
+                dest = Path(args.data_dir) / scene_id
+                dest.mkdir(exist_ok=True)
+
                 
-                for i, img_fname in tqdm(enumerate(fnames)):
-                    if args.omin_tasks is not None and Path(args.pretrained_models).exists():
-                        for omin_task in args.omin_tasks:
-                            out_path = output_path / f"{omin_task}" / camera
-                            os.makedirs(str(out_path), exist_ok=True)
-        
-                            if omin_task == 'normals':
-                                prediction = omnidata_normal(img_fname)
-                            elif omin_task == 'depths':
-                                prediction = omnidata_depth(img_fname)
-                            post_prediction_SSF(prediction, img_fname, out_path)
-        
-        elif task == 'masks_only':
-            from mmseg.apis import inference_segmentor, init_segmentor, show_result_pyplot
-            from mmseg.core.evaluation import get_palette
-            if args.masks_config is None:
-                args.masks_config = os.path.join(args.segformer_path, 'local_configs', 'segformer', 'B5', 'segformer.b5.1024x1024.city.160k.py')
-            if args.checkpoint is None:
-                args.checkpoint = os.path.join(args.segformer_path, 'pretrained', 'segformer.b5.1024x1024.city.160k.pth')
+                output_path = Path(args.output_path) / f"preprocessed" / scene_id
+                lidar_dest = output_path / "lidars"
+                os.makedirs(str(lidar_dest), exist_ok=True)
+                
+                for camName in args.cameras:
+                    
+                    cam_dest = lidar_dest / f"camera_{camName}"
+                    os.makedirs(str(cam_dest), exist_ok=True)
+                    
+                    h, w = args.img_size
 
-            model = init_segmentor(args.masks_config, args.checkpoint, device=args.device)
+                    process_lidar(dest, cam_dest, camName, args.img_size, args.max_depth)
+                
+                print(f"Finished Process {scene_id} Lidar Data")
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="road data preprocessing")
     parser.add_argument("--data_dir", type=str, default='/opt/data/private/chenlu/AutoStudio/AutoStudio/data/carla/',
                     help="")
-    parser.add_argument("--scene_name",type=str, default='5',
+    parser.add_argument("--scene_name",type=str, default=['0', '1', '2', '3', '4', '5'],
                        help="")
     parser.add_argument("--img_size", type=int, default=[512, 768], action="append")
     parser.add_argument("--max_depth", type=float, default=100, help="max depth each image can see")
     parser.add_argument("--near_far", type=int, default=[512, 768], action="append")
+    # parser.add_argument("--cameras", type=str, default=["front_120", "leftfront_100"],
+    #                 help="")
     parser.add_argument("--cameras", type=str, default=["front_120", "back_100", "leftback_100", "rightback_100", "leftfront_100", "rightfront_100"],
                     help="")
     parser.add_argument("--save_path_name", type=str, default="Carla_SSF")
     # task
     parser.add_argument("--tasks", type=str, default=['data_only'],
-                    choices=[['data_only'], ['omni_only'], ['masks_only'],['depth_only'], ['vis_points']],
+                    choices=[['data_only'], ['omni_only'], ['masks_only'],['depth_only'], ['vis_points'], ['lidar_only']],
                     help="")
     
     # omnidata options 

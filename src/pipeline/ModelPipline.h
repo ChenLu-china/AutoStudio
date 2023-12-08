@@ -26,8 +26,6 @@ public:
     ModelPipline(GlobalData* global_data, int n_images);
     std::vector<torch::optim::OptimizerParamGroup> OptimParamGroups() override;
     std::unique_ptr<FieldModel> field_;
-
-
     GlobalData* global_data_;
 
 };

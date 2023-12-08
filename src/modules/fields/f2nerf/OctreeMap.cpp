@@ -76,7 +76,6 @@ RenderResult OctreeMap::Render(const Tensor& rays_o,
 #ifdef PROFILE
 #endif
     int n_rays = rays_o.sizes()[0];
-    std:: cout << n_rays << std::endl;
     sample_result_ = GetSamples(rays_o, rays_d, ranges);
     int n_all_pts = sample_result_.pts.sizes()[0];
     float sampled_pts_per_ray = float(n_all_pts) / float(n_rays);
@@ -134,7 +133,7 @@ RenderResult OctreeMap::Render(const Tensor& rays_o,
         Tensor pts  = sample_result_.pts;
         Tensor dirs = sample_result_.dirs;
         Tensor anchors = sample_result_.anchors.index({"...", 0}).contiguous();
-
+        
         Tensor scene_feat = hashmap_->AnchoredQuery(pts, anchors);
         Tensor sampled_density = DensityAct(scene_feat.index({ Slc(), Slc(0, 1) }));
 
@@ -227,11 +226,10 @@ RenderResult OctreeMap::Render(const Tensor& rays_o,
     colors = colors + last_trans.unsqueeze(-1) * bg_color;
     Tensor disparity = FlexOps::Sum(weights / sampled_t, idx_start_end);
     Tensor depth = FlexOps::Sum(weights * sampled_t, idx_start_end) / (1.f - last_trans + 1e-4f);
-    std::cout << "PASS " << std::endl;
     CHECK_NOT_NAN(colors);
 
 
-    std::cout << sample_result_.pts.sizes()[0] << std::endl;
+    // std::cout << sample_result_.pts.sizes()[0] << std::endl;
     
     return { colors, sample_result_early_stop.first_oct_dis, disparity, edge_feat, depth, weights, idx_start_end };
 }

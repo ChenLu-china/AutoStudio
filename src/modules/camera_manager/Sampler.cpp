@@ -39,18 +39,20 @@ Sampler::Sampler(GlobalData* global_data):
     // std::cout << ray_sample_mode_ << std::endl; 
 }
 
-Sampler* Sampler::GetInstance(std::vector<Image> images, Tensor train_set)
+Sampler* Sampler::GetInstance(std::vector<Image> images, Tensor train_set, Tensor test_set)
 {   
     // Sampler* sampler;
     if (ray_sample_mode_ == 0) {
         auto image_sampler = new ImageSampler(global_data_);
         image_sampler->images_ = images;
         image_sampler->train_set_ = train_set;
+        image_sampler->test_set_ = test_set;
         return image_sampler;
     } else if(ray_sample_mode_ == 1) {
         auto ray_sampler = new RaySampler(global_data_);
         ray_sampler->images_ = images;
         ray_sampler->train_set_ = train_set;
+        ray_sampler->test_set_ = test_set;
         ray_sampler->GenAllRays();
         return ray_sampler;
     } else {
@@ -59,7 +61,7 @@ Sampler* Sampler::GetInstance(std::vector<Image> images, Tensor train_set)
     }
 }
 
-std::tuple<RangeRays, Tensor> Sampler::TestRays()
+std::tuple<RangeRays, Tensor> Sampler::TestRays(int& vis_idx)
 {
     CHECK(false) << "Not implemented";
     return {{Tensor(), Tensor(), Tensor()}, Tensor()};
@@ -71,6 +73,12 @@ std::tuple<RangeRays, Tensor, Tensor> Sampler::GetTrainRays()
     RangeRays rays;
     Tensor rgbs;
     return {rays, rgbs, Tensor()};
+}
+
+std::tuple<int, int> Sampler::Get_HW(int& vis_idx)
+{
+    CHECK(false) << "Not implemented";
+    return {int(), int()};
 }
 
 /**
@@ -112,19 +120,34 @@ std::tuple<RangeRays, Tensor, Tensor> ImageSampler::GetTrainRays()
     return {{sel_rays_o, sel_rays_d, sel_ranges}, sel_rgbs, sel_cams_idx};
 }
 
-std::tuple<RangeRays, Tensor> ImageSampler::TestRays()
+std::tuple<RangeRays, Tensor> ImageSampler::TestRays(int& vis_idx)
 {
     std::cout << "Test rays whether correct?" << std::endl;
-    int cam_idx = train_set_.index({1}).item<int>();
+    int cam_idx = test_set_.index({vis_idx}).item<int>();
     auto image = images_[cam_idx];
     image.toCUDA();
     auto [rays_o, rays_d] = image.GenRaysTensor();
+    image.toHost();
 
-    Tensor part_rays_o = rays_o.index({Slc(0, 10), Slc()}).to(torch::kCPU).contiguous();
-    Tensor part_rays_d = rays_d.index({Slc(0, 10), Slc()}).to(torch::kCPU).contiguous();
-    std::cout << part_rays_o << std::endl;
-    std::cout << part_rays_d << std::endl;
-    return {{Tensor(), Tensor(), Tensor()}, Tensor()};
+    Tensor range = torch::stack({
+                torch::full({ image.height_ * image.width_ }, image.near_, CUDAFloat),
+                torch::full({ image.height_ * image.width_ }, image.far_,  CUDAFloat)}, 
+                -1).contiguous();
+    
+    rays_o = rays_o.reshape({-1, 3}).contiguous();
+    rays_d = rays_d.reshape({-1, 3}).contiguous();
+    Tensor rgbs = image.img_tensor_.reshape({-1, 3}).to(torch::kCUDA).contiguous();
+    range = range.reshape({-1, 2});
+    return {{rays_o, rays_d, range}, rgbs};
+}
+
+std::tuple<int, int> ImageSampler::Get_HW(int& vis_idx)
+{
+    int cam_idx = test_set_.index({vis_idx}).item<int>();
+    auto image = images_[cam_idx];
+    int H = image.height_;
+    int W = image.width_;
+    return {H, W};
 }
 
 /**
@@ -196,7 +219,7 @@ std::tuple<RangeRays, Tensor, Tensor> RaySampler::GetTrainRays()
     return {{sel_rays_o, sel_rays_d, sel_ranges}, sel_rgbs, Tensor()};
 }
 
-std::tuple<RangeRays, Tensor> RaySampler::TestRays()
+std::tuple<RangeRays, Tensor> RaySampler::TestRays(int& vis_idx)
 {
     std::cout << "Test rays whether correct?" << std::endl;
     return {{Tensor(), Tensor(), Tensor()}, Tensor()};

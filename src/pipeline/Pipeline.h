@@ -30,8 +30,12 @@ public:
 
   void Train();
   void Render();
+  void VisualizeImage(int idx);
   void UpdateAdaParams();
-
+  void LoadCheckpoint(const std::string& path);
+  void SaveCheckpoint();
+  std::tuple<Tensor, Tensor, Tensor> RenderWholeImage(Tensor rays_o, Tensor rays_d, Tensor ranges);
+  
   unsigned iter_step_ = 0;
   unsigned end_iter_;
   unsigned report_freq_, vis_freq_, stats_freq_, save_freq_;

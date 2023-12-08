@@ -99,26 +99,6 @@ std::tuple<Tensor, Tensor> Image::GenRaysTensor()
   return {rays_o, rays_d};
 }
 
-Tensor Image::ReadImageTensor(const std::string& path)
-{
-  int w, h, n;
-  unsigned char *idata = stbi_load(path.c_str(), &w, &h, &n, 0);
-
-  Tensor img = torch::empty({ h, w, n }, CPUUInt8);
-  std::memcpy(img.data_ptr(), idata, w * h * n);
-  stbi_image_free(idata);
-
-  img = img.to(torch::kFloat32).to(torch::kCPU) / 255.f;
-  return img;
-}
-
-bool Image::WriteImageTensor(const std::string& path, Tensor img)
-{
-  Tensor out_img = (img * 255.f).clip(0.f, 255.f).to(torch::kUInt8).to(torch::kCPU).contiguous();
-  stbi_write_png(path.c_str(), out_img.size(1), out_img.size(0), out_img.size(2), out_img.data_ptr(), 0);
-  return true;
-}
-
 void Image::toCUDA()
 {
   img_tensor_ = img_tensor_.to(torch::kCUDA).contiguous();
@@ -133,6 +113,26 @@ void Image::toHost()
   c2w_ = c2w_.to(torch::kCPU).contiguous();
   intri_ = intri_.to(torch::kCPU).contiguous();
   dist_param_ = dist_param_.to(torch::kCPU).contiguous();
+}
+
+Tensor ReadImageTensor(const std::string& path)
+{
+  int w, h, n;
+  unsigned char *idata = stbi_load(path.c_str(), &w, &h, &n, 0);
+
+  Tensor img = torch::empty({ h, w, n }, CPUUInt8);
+  std::memcpy(img.data_ptr(), idata, w * h * n);
+  stbi_image_free(idata);
+
+  img = img.to(torch::kFloat32).to(torch::kCPU) / 255.f;
+  return img;
+}
+
+bool WriteImageTensor(const std::string& path, Tensor img)
+{
+  Tensor out_img = (img * 255.f).clip(0.f, 255.f).to(torch::kUInt8).to(torch::kCPU).contiguous();
+  stbi_write_png(path.c_str(), out_img.size(1), out_img.size(0), out_img.size(2), out_img.data_ptr(), 0);
+  return true;
 }
 
 } // namespace AutoStudio

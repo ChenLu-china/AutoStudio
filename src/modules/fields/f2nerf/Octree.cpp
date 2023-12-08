@@ -213,7 +213,7 @@ inline void Octree::AddTreeNode(int u, int depth, Wec3f center, float bbox_len)
   auto visi_cams = GetVaildCams(bbox_len, hash_center);
   // auto visi_cams = AutoStudio::GetVisiCams(bbox_len, hash_center, c2w_, intri_, bound_);
 
-  // std::cout << visi_cams.size() << std::endl;
+  // std::cout << visi_cams << std::endl;
 
   Tensor cam_pos_ts = c2w_.index({Slc(), Slc(0, 3), 3}).to(torch::kCUDA).contiguous();
   Tensor cam_dis = torch::linalg_norm(cam_pos_ts - hash_center.unsqueeze(0), 2, -1, true);
