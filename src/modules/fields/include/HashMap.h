@@ -16,14 +16,17 @@ namespace AutoStudio {
 
 #define N_CHANNELS 2
 #define N_LEVELS 16  // arranged into L levels in instant-ngp
+// 1024
+#define RES_FINE_POW_2 10.f
+// 8
+#define RES_BASE_POW_2 3.f
+
 using Tensor = torch::Tensor;
 using namespace torch::autograd;
 
 
 class Hash3DVertex : public FieldModel
 {
-private:
-
 public:
     Hash3DVertex(GlobalData* global_data);
 

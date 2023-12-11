@@ -26,6 +26,7 @@ AutoStudio::Hash3DVertex::Hash3DVertex(GlobalData* global_data)
     */
     std::cout << "Hash3DVertex::Hash3DVertex" << std::endl;
     global_data_ = global_data;   
+    
     const auto& config = global_data->config_["models"]["fields"];
     pool_size_ = ( 1 << config["log2_table_size"].as<int>()) * N_LEVELS;  // maximum hash table size in instant-npg
 
@@ -102,7 +103,7 @@ Tensor Hash3DVertex::AnchoredQuery(const Tensor& points, const Tensor& anchors)
     query_volume_idx_ = anchors.contiguous();
     info->hash3dvertex_ = this;
     Tensor feat = Hash3DVertexFunction::apply(feat_pool_, torch::IValue(info))[0];  // [n_points, n_levels * n_channels];
-    
+    std::cout <<"feat size is:" <<  feat.sizes() <<std::endl;
     Tensor output = mlp_->Query(feat);
     output = output;
     return output;

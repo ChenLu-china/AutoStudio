@@ -130,13 +130,15 @@ void Runner::Train()
   {
     global_data_ -> iter_step_ = iter_step_;
     for (; iter_step_ < end_iter_;){
+      std::cout << "iter_step_ is :" << iter_step_ << std::endl;
+
       global_data_->backward_nan_ = false;
 
       int cur_batch_size = int(pts_batch_size_ / global_data_->meaningful_sampled_pts_per_ray_) >> 4 << 4;
       // std::cout << cur_batch_size << std::endl;
       dataset_->sampler_->batch_size_ = cur_batch_size;
       auto [train_rays, gt_colors, emb_idx] = dataset_->sampler_->GetTrainRays();
-      // std::cout << "train data size:" << train_rays.origins.sizes() << std::endl;
+      std::cout << "train data size:" << train_rays.origins.sizes() << std::endl;
       // std::cout << "train color size:" << gt_colors.sizes() << std::endl;
       // std::cout << "train emb_idx size:" << emb_idx << std::endl;
 
@@ -145,7 +147,7 @@ void Runner::Train()
       Tensor& ranges = train_rays.ranges;
       
       auto render_result = model_pip_->field_->Render(rays_o, rays_d, ranges, emb_idx);
-      
+      std::cout << "render_result.color size:" << render_result.colors.sizes() << std::endl;
       Tensor pred_colors = render_result.colors.index({Slc(0, cur_batch_size)});
       Tensor disparity = render_result.disparity;
       Tensor color_loss = torch::sqrt((gt_colors - pred_colors).square() + 1e-4f).mean();
@@ -165,10 +167,11 @@ void Runner::Train()
       else if (iter_step_ > var_loss_start_) {
         var_loss_weight = float(iter_step_ - var_loss_start_) / float(var_loss_end_ - var_loss_start_) * var_loss_weight_;
       }
-      
+     
       Tensor loss = color_loss + var_loss * var_loss_weight + 
                     disparity_loss * disp_loss_weight_ + 
                     tv_loss * tv_loss_weight_;
+      
       std::cout << loss.item<float>() << std::endl;
       float mse = (pred_colors - gt_colors).square().mean().item<float>();
       float psnr = 20.f * std::log10(1 / std::sqrt(mse));
@@ -192,11 +195,13 @@ void Runner::Train()
 
       iter_step_++;
       global_data_->iter_step_ = iter_step_;
-   
+
+      std::cout << "stats_freq_ is :" << stats_freq_ << std::endl;
       if (iter_step_ % stats_freq_ == 0){
         cnpy::npy_save(base_exp_dir_ + "/stats.npy", mse_records.data(), {mse_records.size()});
       }
-      
+
+      std::cout << "vis_freq_ is :" << vis_freq_ << std::endl;
       if (iter_step_ % vis_freq_ == 0){
         int t = iter_step_ / vis_freq_;
         int vis_idx;
@@ -209,7 +214,7 @@ void Runner::Train()
         SaveCheckpoint();
       }
       // time_per_iter = time_per_iter * 0.6f + clock.TimeDuration() * 0.4f;
-
+      std::cout << "report_freq_ is :" << report_freq_ << std::endl;
       if (iter_step_ % report_freq_ == 0) {
         std::cout << fmt::format(
             "Iter: {:>6d} PSNR: {:.2f} NRays: {:>5d} OctSamples: {:.1f} Samples: {:.1f} MeaningfulSamples: {:.1f} IPS: {:.1f} LR: {:.4f}",
