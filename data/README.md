@@ -1,4 +1,8 @@
 # NeRF Synthetic & Indoor Room Datasets
+## nerf_synthetic 360
+## Scannet
+## Hypersim
+## DM-NeRF
 
 # KITTI
 
