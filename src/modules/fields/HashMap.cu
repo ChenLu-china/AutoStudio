@@ -75,7 +75,7 @@ __global__ void Hash3DVertexForwardKernel(int n_points, int n_volumes,
     float w110 = a * b * (1.f - c);
     float w111 = a * b * c;
 
-    #pragma unroll
+#pragma unroll
     for (int k = 0; k < N_CHANNELS; k++) {
         out_feat[level_idx * N_CHANNELS + k] = (T) (
             w000 * float(feat_pool[pos_000 * N_CHANNELS + k]) + w001 * float(feat_pool[pos_001 * N_CHANNELS + k]) +
@@ -162,7 +162,6 @@ __global__ void Hash3DVertexBackwardKernel(int n_points, int n_volumes,
   }
 }
 
-
 variable_list Hash3DVertexFunction::forward(AutogradContext *ctx,
                               Tensor feat_pool,
                               torch::IValue hash3d_info)
@@ -178,18 +177,17 @@ variable_list Hash3DVertexFunction::forward(AutogradContext *ctx,
     CHECK(points.device().is_cuda());
     CHECK(volume_idx.device().is_cuda());
 
-    int n_points = points.size(0);
+    int n_points = points.sizes()[0];
     int n_volumes = info_ptr->hash3dvertex_->n_volumes_;
 
     const unsigned thread_cap = 512;
     dim3 block_dim = {unsigned(thread_cap), 1, 1};
     dim3 grid_dim = {DivUp(n_points, thread_cap), unsigned(N_LEVELS), 1};
 
-    Tensor out_feat = torch::zeros({n_points, N_LEVELS * N_CHANNELS }, CUDAFloat);
+    Tensor out_feat = torch::zeros({n_points, N_LEVELS * N_CHANNELS }, CUDAFlex);
     CHECK(out_feat.is_contiguous());
     
     Tensor feat_pool_true = feat_pool.to(torch::kFloat16).contiguous();
-    return { out_feat.to(torch::kFloat32) };
 
     Hash3DVertexForwardKernel<FlexType><<<grid_dim, block_dim>>>(
       n_points, n_volumes,
@@ -224,7 +222,7 @@ variable_list Hash3DVertexFunction::backward(AutogradContext *ctx, variable_list
     dim3 grid_dim  = { DivUp(n_points, thread_cap), unsigned(N_LEVELS), 1 };
 
     Tensor grad_in = (grad_output[0] * grad_scale).to(torch::kFloat16).contiguous();
-    Tensor true_grad_out = torch::zeros({pool_size, N_CHANNELS}, CUDAFloat);
+    Tensor true_grad_out = torch::zeros({pool_size, N_CHANNELS}, CUDAFlex);
     
     Hash3DVertexBackwardKernel<FlexType><<<grid_dim, block_dim>>>(
       n_points, n_volumes,

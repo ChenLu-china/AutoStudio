@@ -123,11 +123,16 @@ std::tuple<RangeRays, Tensor, Tensor> ImageSampler::GetTrainRays()
 std::tuple<RangeRays, Tensor> ImageSampler::TestRays(int& vis_idx)
 {
     std::cout << "Test rays whether correct?" << std::endl;
-    int cam_idx = test_set_.index({vis_idx}).item<int>();
-    auto image = images_[cam_idx];
+    // std::cout << vis_idx << std::endl;
+    // std::cout << test_set_ << std::endl;
+    auto image = images_[vis_idx];
     image.toCUDA();
     auto [rays_o, rays_d] = image.GenRaysTensor();
     image.toHost();
+
+    std::cout << rays_o.sizes() << std::endl;
+    std::cout << image.height_ << std::endl;
+    std::cout << image.width_ << std::endl;
 
     Tensor range = torch::stack({
                 torch::full({ image.height_ * image.width_ }, image.near_, CUDAFloat),
@@ -143,8 +148,7 @@ std::tuple<RangeRays, Tensor> ImageSampler::TestRays(int& vis_idx)
 
 std::tuple<int, int> ImageSampler::Get_HW(int& vis_idx)
 {
-    int cam_idx = test_set_.index({vis_idx}).item<int>();
-    auto image = images_[cam_idx];
+    auto image = images_[vis_idx];
     int H = image.height_;
     int W = image.width_;
     return {H, W};

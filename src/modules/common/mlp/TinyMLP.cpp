@@ -92,17 +92,12 @@ Tensor TMLP::Query(const Tensor& pts)
     auto info = torch::make_intrusive<TMLPInfo>();
     
     int batch_size = pts.size(0);
-    int batch_size_al = (batch_size + 127) / 128 * 128;
+    int batch_size_al = (batch_size + 255) / 256 * 256;
     auto pad_opt = torch::nn::functional::PadFuncOptions({0LL, 0LL, 0LL, (long long) (batch_size_al - batch_size)});
     Tensor input = torch::nn::functional::pad(pts, pad_opt);
     tmlp_ctx_.ctx.reset();
     info->tmlp_ = this;
-    std::cout << "batch_size_al size is:" << batch_size_al << std::endl;
-    std::cout << "input size is:" << input.sizes() << std::endl;
-    std::cout << "params_ size is:" << params_.sizes() << std::endl;
-
     Tensor feat = TMLPFunction::apply(input, params_.to(torch::kFloat16), torch::IValue(info))[0];
-    std::cout << "end?" << std::endl;
     return feat.index({Slc(0, batch_size), Slc(0, d_out_)}).to(torch::kFloat32).contiguous();
 }
 
@@ -133,26 +128,19 @@ variable_list TMLPFunction::forward(AutogradContext *ctx,
     cudaStream_t stream = at::cuda::getCurrentCUDAStream();
     
     uint32_t batch_size = input.size(0);
-    std::cout << "forward batch size is: " << batch_size << std::endl;
+    // std::cout << "forward batch size is: " << batch_size << std::endl;
     torch::Tensor output = torch::rand({ batch_size, tmlp_wp->module_->n_output_dims() }, torch::TensorOptions().dtype(
         torch_type(tmlp_wp->module_->output_precision())).device(device));
     
     tcnn::cpp::Context tmlp_ctx;
     if (!input.requires_grad() && !params.requires_grad()){
-        std::cout << "end 1? " << std::endl;
-        // std::cout << "output is:" << output << std::endl;
-        std::cout << "output type is:" << void_data_ptr(output) << std::endl;
-        std::cout << "params type is:" << void_data_ptr(params) << std::endl;
-
         tmlp_wp->module_->inference(stream, batch_size, input.data_ptr<float>(), void_data_ptr(output), void_data_ptr(params));
     }
     else{
-        std::cout << "end 2? " << std::endl;
         tmlp_ctx = tmlp_wp->module_->forward(stream, batch_size, input.data_ptr<float>(), 
                                             void_data_ptr(output), void_data_ptr(params),
                                             input.requires_grad());
     }
-    std::cout << "end 3? " << std::endl;
     
     // torch::cuda::synchronize()
     CHECK_EQ(output.scalar_type(), torch_type(tmlp_wp->module_->output_precision()));

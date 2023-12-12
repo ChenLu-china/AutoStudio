@@ -103,7 +103,6 @@ Tensor Hash3DVertex::AnchoredQuery(const Tensor& points, const Tensor& anchors)
     query_volume_idx_ = anchors.contiguous();
     info->hash3dvertex_ = this;
     Tensor feat = Hash3DVertexFunction::apply(feat_pool_, torch::IValue(info))[0];  // [n_points, n_levels * n_channels];
-    std::cout <<"feat size is:" <<  feat.sizes() <<std::endl;
     Tensor output = mlp_->Query(feat);
     output = output;
     return output;

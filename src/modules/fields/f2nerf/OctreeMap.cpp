@@ -78,7 +78,6 @@ RenderResult OctreeMap::Render(const Tensor& rays_o,
     int n_rays = rays_o.sizes()[0];
     sample_result_ = GetSamples(rays_o, rays_d, ranges);
     int n_all_pts = sample_result_.pts.sizes()[0];
-    std::cout << "points number is:" << n_all_pts << std::endl; 
     float sampled_pts_per_ray = float(n_all_pts) / float(n_rays);
     if (global_data_->mode_ == RunningMode::TRAIN){
         global_data_->sampled_pts_per_ray_ = 
@@ -134,9 +133,9 @@ RenderResult OctreeMap::Render(const Tensor& rays_o,
         Tensor pts  = sample_result_.pts;
         Tensor dirs = sample_result_.dirs;
         Tensor anchors = sample_result_.anchors.index({"...", 0}).contiguous();
-        std::cout << "hashmap_-> mlp_ size is:" << hashmap_->mlp_->params_.sizes()  << std::endl;
+        // std::cout << "hashmap_-> mlp_ size is:" << hashmap_->mlp_->params_.sizes()  << std::endl;
         Tensor scene_feat = hashmap_->AnchoredQuery(pts, anchors);
-        std::cout << "scene_feat size is:" << scene_feat.sizes()  << std::endl;
+        // std::cout << "scene_feat size is:" << scene_feat.sizes()  << std::endl;
         
         Tensor sampled_density = DensityAct(scene_feat.index({ Slc(), Slc(0, 1) }));
         Tensor sampled_dt = sample_result_.dt;
@@ -171,8 +170,6 @@ RenderResult OctreeMap::Render(const Tensor& rays_o,
                 global_data_->meaningful_sampled_pts_per_ray_ * 0.9f + meaningful_per_ray * 0.1f;
         }
     }
-
-    std::cout << "" << std::endl;
 
     Tensor scene_feat, edge_feat;
     Tensor pts  = sample_result_early_stop.pts;

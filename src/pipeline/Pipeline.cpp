@@ -130,7 +130,7 @@ void Runner::Train()
   {
     global_data_ -> iter_step_ = iter_step_;
     for (; iter_step_ < end_iter_;){
-      std::cout << "iter_step_ is :" << iter_step_ << std::endl;
+      // std::cout << "iter_step_ is :" << iter_step_ << std::endl;
 
       global_data_->backward_nan_ = false;
 
@@ -138,7 +138,7 @@ void Runner::Train()
       // std::cout << cur_batch_size << std::endl;
       dataset_->sampler_->batch_size_ = cur_batch_size;
       auto [train_rays, gt_colors, emb_idx] = dataset_->sampler_->GetTrainRays();
-      std::cout << "train data size:" << train_rays.origins.sizes() << std::endl;
+      // std::cout << "train data size:" << train_rays.origins.sizes() << std::endl;
       // std::cout << "train color size:" << gt_colors.sizes() << std::endl;
       // std::cout << "train emb_idx size:" << emb_idx << std::endl;
 
@@ -147,7 +147,7 @@ void Runner::Train()
       Tensor& ranges = train_rays.ranges;
       
       auto render_result = model_pip_->field_->Render(rays_o, rays_d, ranges, emb_idx);
-      std::cout << "render_result.color size:" << render_result.colors.sizes() << std::endl;
+      // std::cout << "render_result.color size:" << render_result.colors.sizes() << std::endl;
       Tensor pred_colors = render_result.colors.index({Slc(0, cur_batch_size)});
       Tensor disparity = render_result.disparity;
       Tensor color_loss = torch::sqrt((gt_colors - pred_colors).square() + 1e-4f).mean();
@@ -172,7 +172,6 @@ void Runner::Train()
                     disparity_loss * disp_loss_weight_ + 
                     tv_loss * tv_loss_weight_;
       
-      std::cout << loss.item<float>() << std::endl;
       float mse = (pred_colors - gt_colors).square().mean().item<float>();
       float psnr = 20.f * std::log10(1 / std::sqrt(mse));
       psnr_smooth = psnr_smooth < 0.f ? psnr : psnr * .1f + psnr_smooth * .9f;
@@ -196,12 +195,10 @@ void Runner::Train()
       iter_step_++;
       global_data_->iter_step_ = iter_step_;
 
-      std::cout << "stats_freq_ is :" << stats_freq_ << std::endl;
       if (iter_step_ % stats_freq_ == 0){
         cnpy::npy_save(base_exp_dir_ + "/stats.npy", mse_records.data(), {mse_records.size()});
       }
 
-      std::cout << "vis_freq_ is :" << vis_freq_ << std::endl;
       if (iter_step_ % vis_freq_ == 0){
         int t = iter_step_ / vis_freq_;
         int vis_idx;
@@ -214,7 +211,6 @@ void Runner::Train()
         SaveCheckpoint();
       }
       // time_per_iter = time_per_iter * 0.6f + clock.TimeDuration() * 0.4f;
-      std::cout << "report_freq_ is :" << report_freq_ << std::endl;
       if (iter_step_ % report_freq_ == 0) {
         std::cout << fmt::format(
             "Iter: {:>6d} PSNR: {:.2f} NRays: {:>5d} OctSamples: {:.1f} Samples: {:.1f} MeaningfulSamples: {:.1f} IPS: {:.1f} LR: {:.4f}",
@@ -229,7 +225,6 @@ void Runner::Train()
                   << std::endl;
       }
       UpdateAdaParams();
-      std::cout << "loop" << std::endl;
     }
     YAML::Node info_data;
 
@@ -264,7 +259,7 @@ std::tuple<Tensor, Tensor, Tensor> Runner::RenderWholeImage(Tensor rays_o, Tenso
   Tensor pred_disp = torch::zeros({n_rays, 1}, CPUFloat);
 
   const int ray_batch_size = 8192;
-  for (int i =0; i< n_rays; i += ray_batch_size){
+  for (int i = 0; i < n_rays; i += ray_batch_size){
     int i_high = std::min(i + ray_batch_size, n_rays);
     Tensor cur_rays_o = rays_o.index({Slc(i, i_high)}).to(torch::kCUDA).contiguous();
     Tensor cur_rays_d = rays_d.index({Slc(i, i_high)}).to(torch::kCUDA).contiguous();
@@ -272,7 +267,7 @@ std::tuple<Tensor, Tensor, Tensor> Runner::RenderWholeImage(Tensor rays_o, Tenso
 
     auto render_result = model_pip_->field_->Render(cur_rays_o, cur_rays_d, cur_ranges, Tensor());
     Tensor colors = render_result.colors.detach().to(torch::kCPU);
-    Tensor disp = render_result.disparity.detach().to(torch::kCPU);
+    Tensor disp = render_result.disparity.detach().to(torch::kCPU).squeeze();
 
     pred_colors.index_put_({Slc(i, i_high)}, colors);
     pred_disp.index_put_({Slc(i, i_high)}, disp.unsqueeze(-1));
@@ -286,7 +281,7 @@ std::tuple<Tensor, Tensor, Tensor> Runner::RenderWholeImage(Tensor rays_o, Tenso
   }
   pred_disp = pred_disp / pred_disp.max();
   first_oct_disp = first_oct_disp.min() / first_oct_disp;
-
+  
   return { pred_colors, first_oct_disp, pred_disp };
 }
 

@@ -62,7 +62,7 @@ class Hash3DVertexFunction : public Function<Hash3DVertexFunction>
 {
 public:
     static variable_list forward(AutogradContext *ctx,
-                                Tensor feat_pool,
+                                Tensor feat_pool_,
                                 torch::IValue hash3d_info);
 
     static variable_list backward(AutogradContext *ctx, variable_list grad_output);
