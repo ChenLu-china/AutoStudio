@@ -63,7 +63,6 @@ class ImageSampler: public Sampler
 public:
     ImageSampler(GlobalData* global_data);
 
-    std::tuple<RangeRays, Tensor> TestRays(int& vis_idx) override;
     std::tuple<RangeRays, Tensor, Tensor> GetTrainRays() override;
     std::tuple<int, int> Get_HW(int& vis_idx) override;
     // std::tuple<>
@@ -77,7 +76,6 @@ public:
     void GenAllRays();
     void GenRandRaysIdx();
 
-    std::tuple<RangeRays, Tensor> TestRays(int& vis_idx) override;
     std::tuple<RangeRays, Tensor, Tensor> GetTrainRays() override;
     
 
@@ -94,6 +92,7 @@ public:
     void GatherData();
     std::tuple<RangeRays, Tensor, Tensor> GetTrainRays() override;
     std::tuple<Tensor, Tensor> Img2WorldRayFlex(const Tensor& cam_indices, const Tensor& ij);
+    
     int width_, height_;
     Tensor image_tensors_, poses_, intri_, dist_params_, ranges_;
 };

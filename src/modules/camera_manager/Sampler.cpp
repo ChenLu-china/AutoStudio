@@ -74,10 +74,22 @@ Sampler* Sampler::GetInstance(std::vector<Image> images, Tensor train_set, Tenso
 
 std::tuple<RangeRays, Tensor> Sampler::TestRays(int& vis_idx)
 {
-    CHECK(false) << "Not implemented";
-    return {{Tensor(), Tensor(), Tensor()}, Tensor()};
-}
+    auto image = images_[vis_idx];
+    image.toCUDA();
+    auto [rays_o, rays_d] = image.GenRaysTensor();
+    image.toHost();
 
+    Tensor range = torch::stack({
+                torch::full({ image.height_ * image.width_ }, image.near_, CUDAFloat),
+                torch::full({ image.height_ * image.width_ }, image.far_,  CUDAFloat)}, 
+                -1).contiguous();
+    
+    rays_o = rays_o.reshape({-1, 3}).contiguous();
+    rays_d = rays_d.reshape({-1, 3}).contiguous();
+    Tensor rgbs = image.img_tensor_.reshape({-1, 3}).to(torch::kCUDA).contiguous();
+    range = range.reshape({-1, 2});
+    return {{rays_o, rays_d, range}, rgbs};
+}
 
 std::tuple<RangeRays, Tensor, Tensor> Sampler::GetTrainRays()
 {
@@ -88,8 +100,10 @@ std::tuple<RangeRays, Tensor, Tensor> Sampler::GetTrainRays()
 
 std::tuple<int, int> Sampler::Get_HW(int& vis_idx)
 {
-    CHECK(false) << "Not implemented";
-    return {int(), int()};
+    auto image = images_[vis_idx];
+    int H = image.height_;
+    int W = image.width_;
+    return {H, W};
 }
 
 /**
@@ -131,24 +145,24 @@ std::tuple<RangeRays, Tensor, Tensor> ImageSampler::GetTrainRays()
     return {{sel_rays_o, sel_rays_d, sel_ranges}, sel_rgbs, sel_cams_idx};
 }
 
-std::tuple<RangeRays, Tensor> ImageSampler::TestRays(int& vis_idx)
-{
-    auto image = images_[vis_idx];
-    image.toCUDA();
-    auto [rays_o, rays_d] = image.GenRaysTensor();
-    image.toHost();
+// std::tuple<RangeRays, Tensor> ImageSampler::TestRays(int& vis_idx)
+// {
+//     auto image = images_[vis_idx];
+//     image.toCUDA();
+//     auto [rays_o, rays_d] = image.GenRaysTensor();
+//     image.toHost();
 
-    Tensor range = torch::stack({
-                torch::full({ image.height_ * image.width_ }, image.near_, CUDAFloat),
-                torch::full({ image.height_ * image.width_ }, image.far_,  CUDAFloat)}, 
-                -1).contiguous();
+//     Tensor range = torch::stack({
+//                 torch::full({ image.height_ * image.width_ }, image.near_, CUDAFloat),
+//                 torch::full({ image.height_ * image.width_ }, image.far_,  CUDAFloat)}, 
+//                 -1).contiguous();
     
-    rays_o = rays_o.reshape({-1, 3}).contiguous();
-    rays_d = rays_d.reshape({-1, 3}).contiguous();
-    Tensor rgbs = image.img_tensor_.reshape({-1, 3}).to(torch::kCUDA).contiguous();
-    range = range.reshape({-1, 2});
-    return {{rays_o, rays_d, range}, rgbs};
-}
+//     rays_o = rays_o.reshape({-1, 3}).contiguous();
+//     rays_d = rays_d.reshape({-1, 3}).contiguous();
+//     Tensor rgbs = image.img_tensor_.reshape({-1, 3}).to(torch::kCUDA).contiguous();
+//     range = range.reshape({-1, 2});
+//     return {{rays_o, rays_d, range}, rgbs};
+// }
 
 std::tuple<int, int> ImageSampler::Get_HW(int& vis_idx)
 {
@@ -227,11 +241,11 @@ std::tuple<RangeRays, Tensor, Tensor> RaySampler::GetTrainRays()
     return {{sel_rays_o, sel_rays_d, sel_ranges}, sel_rgbs, Tensor()};
 }
 
-std::tuple<RangeRays, Tensor> RaySampler::TestRays(int& vis_idx)
-{
-    std::cout << "Test rays whether correct?" << std::endl;
-    return {{Tensor(), Tensor(), Tensor()}, Tensor()};
-}
+// std::tuple<RangeRays, Tensor> RaySampler::TestRays(int& vis_idx)
+// {
+//     std::cout << "Test rays whether correct?" << std::endl;
+//     return {{Tensor(), Tensor(), Tensor()}, Tensor()};
+// }
 
 /**
  *  OriSampler fucntion implementation

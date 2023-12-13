@@ -124,7 +124,6 @@ void Runner::Train()
   
   float psnr_smooth = -1.0;
   UpdateAdaParams();
-  std::cout << end_iter_ << std::endl;
 
   {
     global_data_ -> iter_step_ = iter_step_;
@@ -316,7 +315,7 @@ void Runner::LoadCheckpoint(const std::string& path)
   {
     std::vector<Tensor> scene_states;
     torch::load(scene_states, path + "/model.pt");
-    model_pip_->LoadStates(scene_states, 0);
+    model_pip_->field_->LoadStates(scene_states, 0);
   }
 }
 

@@ -11,6 +11,7 @@
 #include "Eigen/Eigen"
 #include "../../../Common.h"
 #include "../../../dataset/Dataset.h"
+#include "../../common/include/BaseModel.h"
 
 namespace AutoStudio
 {
@@ -68,6 +69,7 @@ public:
     void ProcOctree(bool compact, bool subdivide, bool brute_force);
     void MarkInvisibleNodes();
     
+
 public:   
     int max_depth_;
     Tensor c2w_, w2c_, intri_, bound_;

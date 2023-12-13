@@ -289,7 +289,7 @@ std::vector<torch::optim::OptimizerParamGroup> OctreeMap::OptimParamGroups() {
 
 
 std::vector<Tensor> OctreeMap::States()
-{
+{   
     std::vector<Tensor> ret;
     ret.push_back(octree_->octree_nodes_gpu_);
     ret.push_back(octree_->octree_trans_gpu_);
@@ -297,6 +297,13 @@ std::vector<Tensor> OctreeMap::States()
     Tensor milestones_ts = torch::from_blob(sub_div_milestones_.data(), sub_div_milestones_.size(), CPUInt).to(torch::kCUDA);
     ret.push_back(milestones_ts);
     
+    for (auto pipe : sub_models_) {
+        auto cur_states = pipe->States();
+        ret.insert(ret.end(), cur_states.begin(), cur_states.end());
+    }
+
+    ret.push_back(app_emb_.data());
+
     return ret;
 }
 
@@ -330,6 +337,12 @@ int OctreeMap::LoadStates(const std::vector<Tensor>& states, int idx)
         }
     }
     PRINT_VAL(valid_nodes);
+
+    for (auto pipe : sub_models_) {
+        idx = pipe->LoadStates(states, idx);
+    }
+
+    app_emb_.data().copy_(states[idx++].clone().to(torch::kCUDA).contiguous());
 
     return idx;
 }

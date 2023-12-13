@@ -40,8 +40,8 @@ AutoStudio::Hash3DVertex::Hash3DVertex(GlobalData* global_data)
     CHECK(feat_pool_.is_contiguous());
 
     n_volumes_ = global_data_->n_volumes_;
-    std::cout << pool_size_ << std::endl;
-    std::cout << n_volumes_ << std::endl;
+    // std::cout << pool_size_ << std::endl;
+    // std::cout << n_volumes_ << std::endl;
 
     // Get different prime numbers
     auto is_prim = [](int x){
@@ -55,8 +55,8 @@ AutoStudio::Hash3DVertex::Hash3DVertex(GlobalData* global_data)
     std::vector<int> prim_selected;
     int min_local_prim = 1 << 28;
     int max_local_prim = 1 << 30;
-    std::cout << n_volumes_ << std::endl;
-    std::cout << 3 * N_LEVELS * n_volumes_ << std::endl;
+    // std::cout << n_volumes_ << std::endl;
+    // std::cout << 3 * N_LEVELS * n_volumes_ << std::endl;
     for (int i = 0; i < 3 * N_LEVELS * n_volumes_; ++i){
         int val;
         do {
@@ -65,7 +65,7 @@ AutoStudio::Hash3DVertex::Hash3DVertex(GlobalData* global_data)
         while(!is_prim(val));
         prim_selected.push_back(val);
     }
-    std::cout << prim_selected.size() << std::endl;
+    // std::cout << prim_selected.size() << std::endl;
     CHECK_EQ(prim_selected.size(), 3 * N_LEVELS * n_volumes_);
 
     prim_pool_ = torch::from_blob(prim_selected.data(), 3 * N_LEVELS * n_volumes_, CPUInt).to(torch::kCUDA);
@@ -81,7 +81,7 @@ AutoStudio::Hash3DVertex::Hash3DVertex(GlobalData* global_data)
     // size of each level & each volume
     {
         int local_size = pool_size_ / N_LEVELS;
-        std::cout << local_size << std::endl;
+        // std::cout << local_size << std::endl;
         local_size = (local_size >> 4) << 4;
         feat_local_size_ = torch::full( { N_LEVELS }, local_size, CUDAInt).contiguous();
         feat_local_idx_ = torch::cumsum(feat_local_size_, 0) - local_size;
