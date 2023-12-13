@@ -6,6 +6,7 @@
 *  @brief 
 */
 
+
 #include "TinyMLP.h"
 
 #ifdef _MSC_VER
@@ -39,19 +40,18 @@ using namespace torch::autograd;
 
 void* void_data_ptr(torch::Tensor& tensor)
 {
-    switch (tensor.scalar_type())
-    {
+    switch (tensor.scalar_type()) {
         case torch::kFloat32: return tensor.data_ptr<float>();
         case torch::kHalf: return tensor.data_ptr<torch::Half>();
         default: throw std::runtime_error{"Unknown precision torch->void"};
     }
 }
 
-c10::ScalarType torch_type(tcnn::cpp::Precision precision)
+c10::ScalarType torch_type(tcnn::cpp::EPrecision precision)
 {
-    switch (precision){
-        case tcnn::cpp::Precision::Fp32: return torch::kFloat32;
-        case tcnn::cpp::Precision::Fp16: return torch::kHalf;
+    switch (precision) {
+        case tcnn::cpp::EPrecision::Fp32: return torch::kFloat32;
+        case tcnn::cpp::EPrecision::Fp16: return torch::kHalf;
         default: throw std::runtime_error{"Unknown precision tcnn->torch"};
     }
 }
@@ -133,7 +133,7 @@ variable_list TMLPFunction::forward(AutogradContext *ctx,
         torch_type(tmlp_wp->module_->output_precision())).device(device));
     
     tcnn::cpp::Context tmlp_ctx;
-    if (!input.requires_grad() && !params.requires_grad()){
+    if (!input.requires_grad() && !params.requires_grad()) {
         tmlp_wp->module_->inference(stream, batch_size, input.data_ptr<float>(), void_data_ptr(output), void_data_ptr(params));
     }
     else{

@@ -1,14 +1,12 @@
 /**
 * This file is part of autostudio
 * Copyright (C) 
-**/
-
-/**
- * @brief
+* @brief
  * 1. set max depth of octree
  * 2. set max size of cube
  * 3. 
-*/
+**/
+
 
 #include <torch/torch.h>
 #include <fmt/core.h>
@@ -142,7 +140,7 @@ inline void Octree::GenPixelIdx()
   std::vector<Tensor> cam_coords;
   
   int num = c2w_.sizes()[0];
-  for (int k = 0; k < num; ++k){
+  for (int k = 0; k < num; ++k) {
     float half_w = intri_.index({ k, 0, 2 }).item<float>();
     float half_h = intri_.index({ k, 1, 2 }).item<float>();
     int res_w = 128;
@@ -168,11 +166,13 @@ inline void Octree::GenPixelIdx()
 
 float Octree::DistanceSummary(const Tensor& dis)
 {
-  if (dis.reshape(-1).size(0) <= 0) { return 1e8f; }
+  if (dis.reshape(-1).size(0) <= 0) {
+    return 1e8f;
+  }
   Tensor log_dis = torch::log(dis);
   float thres = torch::quantile(log_dis, 0.25).item<float>();
   Tensor mask = (log_dis < thres).to(torch::kFloat32);
-  if (mask.sum().item<float>() < 1e-3f){
+  if (mask.sum().item<float>() < 1e-3f) {
     return std::exp(log_dis.mean().item<float>());
   }
   return std::exp(((log_dis * mask).sum() / mask.sum()).item<float>());
@@ -231,7 +231,7 @@ inline void Octree::AddTreeNode(int u, int depth, Wec3f center, float bbox_len)
 
   //subdivide the tree node
   if (exist_unaddressed_cams){
-    for (int st = 0; st < 8; ++st){
+    for (int st = 0; st < 8; ++st) {
       int v = octree_nodes_.size();
       octree_nodes_.emplace_back();
       Wec3f offset(float((st >> 2) & 1) - .5f, float((st >> 1) & 1) - .5f, float(st & 1) - .5f);
@@ -260,14 +260,14 @@ inline void Octree::AddTreeNode(int u, int depth, Wec3f center, float bbox_len)
 std::vector<int> Octree::GetVaildCams(float bbox_len, const Tensor& center)
 { 
   Tensor rays_d, rays_o;
-  if (c2w_.sizes()[0] < 800){
+  if (c2w_.sizes()[0] < 800) {
     rays_d = torch::matmul(c2w_.index({ Slc(), None, Slc(0, 3), Slc(0, 3) }), cam_coords_.index({Slc(), Slc(), Slc(), None})).index({"...", 0});  // [ n_cams, n_pix, 3 ]
     rays_o = c2w_.index({Slc(), None, Slc(0, 3), 3}).repeat({1, cam_coords_.sizes()[1], 1 });
   }
   else{
     std::vector<Tensor> rays_o_vec, rays_d_vec, bound_vec;
     const int n_image = train_set_.sizes()[0];
-    for(int i = 0; i < n_image; ++i) {
+    for (int i = 0; i < n_image; ++i) {
         int img_id = train_set_.index({i}).item<int>(); 
         auto img = images_[img_id];
         
@@ -514,20 +514,22 @@ inline void Octree::AddTreeEdges()
   std::cout << "Octree::AddTreeEdges" << std::endl;
 
   int n_nodes = octree_nodes_.size();
-  auto is_inside = [](const OctreeNode& node, const Wec3f& pt) -> bool{
+  auto is_inside = [](const OctreeNode& node, const Wec3f& pt) -> bool {
       Wec3f bias = (pt - node.center_) / node.extend_len_ * 2.f;
       return bias.cwiseAbs().maxCoeff() < (1.f + 1e-4f);
   };
 
-  for (int a = 0; a < n_nodes; ++a){
+  for (int a = 0; a < n_nodes; ++a) {
       if (octree_nodes_[a].trans_idx_ < 0){ continue; }
       for (int b = a + 1; b < n_nodes; ++b){
-          if (octree_nodes_[b].trans_idx_ < 0) { continue; }
+          if (octree_nodes_[b].trans_idx_ < 0) {
+            continue;
+          }
           int u = a, v = b;
           int t_a = octree_nodes_[a].trans_idx_;
           int t_b = octree_nodes_[b].trans_idx_;
 
-          if (octree_nodes_[u].extend_len_ > octree_nodes_[v].extend_len_){
+          if (octree_nodes_[u].extend_len_ > octree_nodes_[v].extend_len_) {
               std::swap(u, v);
           }
 
@@ -638,7 +640,9 @@ void Octree::ProcOctree(bool compact, bool subdivide, bool brute_force)
     };
 
     for (int u = 0; u < n_nodes_before; u++) {
-      if (octree_nodes_before[u].is_leaf_node_ && octree_nodes_before[u].trans_idx_ < 0) { continue; }
+      if (octree_nodes_before[u].is_leaf_node_ && octree_nodes_before[u].trans_idx_ < 0) {
+        continue;
+      }
       int child_idx = -1;
       int v = octree_nodes_before[u].parent_;
       int st = -1;
@@ -673,7 +677,9 @@ void Octree::ProcOctree(bool compact, bool subdivide, bool brute_force)
   std::vector<int> new_alpha_stats;
 
   for (int u = 0; u < n_nodes_before; u++) {
-    if (new_idx[u] < 0) { continue; }
+    if (new_idx[u] < 0) {
+      continue;
+    }
     OctreeNode node = octree_nodes_before[u];
     if (node.parent_ >= 0) {
       node.parent_ = new_idx[node.parent_];
@@ -717,7 +723,9 @@ void Octree::ProcOctree(bool compact, bool subdivide, bool brute_force)
 
       if (nodes_wp[u].is_leaf_node_) {
         CHECK(nodes_wp[u].trans_idx_ >= 0);
-        if (!brute_force && visit_cnt[inv_idx[u]] <= 4) { return new_u; }
+        if (!brute_force && visit_cnt[inv_idx[u]] <= 4) {
+          return new_u;
+        }
         for (int st = 0; st < 8; st++) {
           Wec3f offset(float((st >> 2) & 1) - .5f, float((st >> 1) & 1) - .5f, float(st & 1) - .5f);
           Wec3f sub_center = new_nodes[new_u].center_ + new_nodes[new_u].extend_len_ * .5f * offset;
