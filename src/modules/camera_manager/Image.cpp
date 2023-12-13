@@ -82,6 +82,8 @@ std::tuple<Tensor, Tensor> Image::Img2WorldRay(int res_w, int res_h)
   return {rays_o, rays_d};
 }
 
+
+
 std::tuple<Tensor, Tensor> Image::GenRaysTensor()
 {
   auto option = torch::TensorOptions().dtype(torch::kInt32);

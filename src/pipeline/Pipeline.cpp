@@ -66,15 +66,14 @@ Runner::Runner(const std::string& conf_path)
   //optimize
   optimizer_ = std::make_unique<torch::optim::Adam>(model_pip_->OptimParamGroups());
 
-  // if (config["is_continue"].as<bool>()){
-  //   LoadCheckpoint(base_exp_dir_ + "/checkpoints/latest");
-  // }
-  // if (config["reset"] && config["reset"].as<bool>()){
-  //   model_pip_->Reset();
-  // }
+  if (config["is_continue"].as<bool>()){
+    LoadCheckpoint(base_exp_dir_ + "/checkpoints/latest");
+  }
+  if (config["reset"] && config["reset"].as<bool>()){
+    model_pip_->Reset();
+  }
   
 }
-
 
 void Runner::UpdateAdaParams()
 {
@@ -285,7 +284,6 @@ std::tuple<Tensor, Tensor, Tensor> Runner::RenderWholeImage(Tensor rays_o, Tenso
   return { pred_colors, first_oct_disp, pred_disp };
 }
 
-
 void Runner::VisualizeImage(int idx)
 {
   torch::NoGradGuard no_grad_guard;
@@ -326,8 +324,11 @@ void Runner::SaveCheckpoint()
 {
   std::string output_dir = base_exp_dir_ + fmt::format("/checkpoints/{:0>8d}", iter_step_);
   fs::create_directories(output_dir);
+  
+  fs::remove_all(base_exp_dir_ + "/checkpoints/latest");
+  fs::create_directory(base_exp_dir_ + "/checkpoints/latest");
   // scene
-  torch::save(model_pip_->States(), output_dir + "/model.pt");
+  torch::save(model_pip_->field_->States(), output_dir + "/model.pt");
   fs::create_symlink(output_dir + "/model.pt", base_exp_dir_ + "/checkpoints/latest/model.pt");
   // optimizer
   // torch::save(*(optimizer_), output_dir + "optimizer.pt");
@@ -335,7 +336,7 @@ void Runner::SaveCheckpoint()
   Tensor scalars = torch::empty({1}, CPUFloat);
   scalars.index_put_({0}, float(iter_step_));
   torch::save(scalars, output_dir + "/scalars.pt");
-  fs::create_symlink(output_dir + "/scalars.pt", base_exp_dir_ + "/checkpoints/lasest/scalars.pt");
+  fs::create_symlink(output_dir + "/scalars.pt", base_exp_dir_ + "/checkpoints/latest/scalars.pt");
 }
 
 

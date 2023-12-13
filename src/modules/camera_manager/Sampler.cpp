@@ -30,7 +30,10 @@ Sampler::Sampler(GlobalData* global_data):
         ray_sample_mode_ = RaySampleMode::SINGLE_IMAGE;
     } else if (ray_sample_mode == "all_images") {
         ray_sample_mode_  = RaySampleMode::ALL_IMAGES;
-    } else {
+    } else if (ray_sample_mode == "multi_images"){
+        ray_sample_mode_  = RaySampleMode::MULTI_IMAGES;
+    }
+    else {
         std::cout << "Invalid Rays Sampler Mode" << std::endl;
         std::exit;
     }
@@ -55,7 +58,15 @@ Sampler* Sampler::GetInstance(std::vector<Image> images, Tensor train_set, Tenso
         ray_sampler->test_set_ = test_set;
         ray_sampler->GenAllRays();
         return ray_sampler;
-    } else {
+    } else if(ray_sample_mode_ == 2){
+        auto ray_sampler = new OriSampler(global_data_);
+        ray_sampler->images_ = images;
+        ray_sampler->train_set_ = train_set;
+        ray_sampler->test_set_ = test_set;
+        ray_sampler->GatherData();
+        return ray_sampler;
+    } 
+    else {
         std::cout << "Not Exist Correct Object Sampler" << std::endl;
         return nullptr;
     }
@@ -221,5 +232,69 @@ std::tuple<RangeRays, Tensor> RaySampler::TestRays(int& vis_idx)
     std::cout << "Test rays whether correct?" << std::endl;
     return {{Tensor(), Tensor(), Tensor()}, Tensor()};
 }
+
+/**
+ *  OriSampler fucntion implementation
+*/
+
+OriSampler::OriSampler(GlobalData* global_data):Sampler(global_data)
+{
+    std::string set_name = global_data_->config_["dataset_name"].as<std::string>();
+    fmt::print("The {} dataset use Original Sampler\n", set_name);
+}
+
+void OriSampler::GatherData()
+{   
+    std::vector<Tensor> images, poses, intris, dist_params, ranges;
+    int n = int(images_.size());
+    for (int i = 0; i < n; ++i){
+        images.push_back(images_[i].img_tensor_);
+        poses.push_back(images_[i].c2w_);
+        intris.push_back(images_[i].intri_);
+        dist_params.push_back(images_[i].dist_param_);
+        Tensor range  = torch::stack({
+                                   torch::full({ 1 }, images_[i].near_),
+                                   torch::full({ 1 }, images_[i].far_)
+                               }, -1).contiguous();
+        ranges.push_back(range);
+        if (i == 0){
+            height_ = images_[i].height_;
+            width_ = images_[i].width_;
+        }
+    }
+
+    image_tensors_ = torch::stack(images, 0).reshape({-1, 3});
+    poses_ = torch::stack(poses, 0).reshape({-1, 3, 4});
+    intri_ = torch::stack(intris,0).reshape({-1, 3, 3});
+    dist_params_ = torch::stack(dist_params, 0).reshape({-1, 4});
+    ranges_ = torch::stack(ranges, 0).reshape({-1, 2});
+
+    image_tensors_ = image_tensors_.to(torch::kCUDA).contiguous();
+    poses_ = poses_.to(torch::kCUDA).contiguous();
+    intri_ = intri_.to(torch::kCUDA).contiguous();
+    dist_params_ = dist_params_.to(torch::kCUDA).contiguous();
+    ranges_ = ranges_.to(torch::kCUDA).contiguous();
+
+}
+
+std::tuple<RangeRays, Tensor, Tensor> OriSampler::GetTrainRays(){
+    // std::vector<int> img_idx; 
+    // img_idx.insert(img_idx.end(), train_set_.begin(), train_set_.end());
+    // Tensor cur_set = torch::from_blob(img_idx.data(), { int(img_idx.size())}, CPUInt);
+    train_set_ = train_set_.to(CPUInt);
+    int num = train_set_.sizes()[0];
+    Tensor cam_indices = torch::randint(num, { batch_size_ }, CPULong); // Torch index need "long long" type
+    cam_indices = train_set_.index({cam_indices}).contiguous();
+    Tensor i = torch::randint(0, height_, batch_size_, CPULong);
+    Tensor j = torch::randint(0, width_, batch_size_, CPULong);
+    Tensor ij = torch::stack({i, j}, -1).to(torch::kCUDA).contiguous();
+
+    Tensor gt_colors = image_tensors_.view({-1, 3}).index({ (cam_indices * height_ * width_ + i * width_ + j).to(torch::kLong) }).to(torch::kCUDA).contiguous();
+    cam_indices = cam_indices.to(torch::kCUDA);
+    auto [ rays_o, rays_d ] = Img2WorldRayFlex(cam_indices.to(torch::kInt32), ij.to(torch::kInt32));
+    Tensor ranges = ranges_.index({cam_indices.to(torch::kLong)}).contiguous();
+    return { { rays_o, rays_d, ranges }, gt_colors, cam_indices.to(torch::kInt32).contiguous() };
+}
+
 
 } //namespace AutoStudio

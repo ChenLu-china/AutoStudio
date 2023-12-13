@@ -45,6 +45,7 @@ public:
     enum RaySampleMode {
         SINGLE_IMAGE,
         ALL_IMAGES,
+        MULTI_IMAGES,
     };
 
 public:
@@ -83,6 +84,17 @@ public:
     int64_t cur_idx_;
     Tensor rgbs_, rays_o_, rays_d_, ranges_;
     Tensor rays_idx_;
+};
+
+class OriSampler: public Sampler
+{
+public: 
+    OriSampler(GlobalData* global_data);
+    void GatherData();
+    std::tuple<RangeRays, Tensor, Tensor> GetTrainRays() override;
+    std::tuple<Tensor, Tensor> Img2WorldRayFlex(const Tensor& cam_indices, const Tensor& ij);
+    int width_, height_;
+    Tensor image_tensors_, poses_, intri_, dist_params_, ranges_;
 };
 
 } //namespace AutoStudio
