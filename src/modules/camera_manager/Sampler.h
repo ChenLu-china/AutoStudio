@@ -79,6 +79,7 @@ public:
 
     std::tuple<RangeRays, Tensor> TestRays(int& vis_idx) override;
     std::tuple<RangeRays, Tensor, Tensor> GetTrainRays() override;
+    
 
     int64_t n_rays_;
     int64_t cur_idx_;
