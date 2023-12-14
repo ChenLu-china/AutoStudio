@@ -54,7 +54,15 @@ os.environ['CURL_CA_BUNDLE'] = ''
 # os.environ["QT_API"] = "pyqt"
 # from mayavi import mlab
 
+cityscapes_classes = [
+    'road', 'sidewalk', 'building', 'wall', 'fence', 'pole',
+    'traffic light', 'traffic sign', 'vegetation', 'terrain', 'sky',
+    'person', 'rider', 'car', 'truck', 'bus', 'train', 'motorcycle',
+    'bicycle'
+]
+cityscapes_classes_ind_map = {cn: i for i, cn in enumerate(cityscapes_classes)}
 
+cityscapes_classes_valid = ['road']
 # mlab.options.offscreen = True
 
 # figure = mlab.figure(size=(2560, 1440), bgcolor=(1, 1, 1))
@@ -244,10 +252,17 @@ def depth2localpcd(depth, k, scale, color=None, max_depth=0.05):
     p3d = np.transpose(p3d)
     return p3d, color  
 
-def calculate_pc_distance(rays_o, rays_d, k, normalized_depth, far, scale, max_depth=70.0):
+def calculate_pc_distance(rays_o, rays_d, k, normalized_depth, far, scale, max_depth=70.0, mask=None):
     # H, W = img_size
     far = far * scale
     z_depth = normalized_depth.reshape(-1) * far
+    
+    if mask is not None:
+        mask = mask.reshape(-1)
+        z_depth = z_depth[mask]
+        rays_o = rays_o[mask]
+        rays_d = rays_d[mask]
+    
     max_depth_indexes = np.where(z_depth < max_depth)
     z_depth = z_depth[max_depth_indexes]
     rays_o = rays_o[max_depth_indexes]
@@ -509,7 +524,7 @@ def read_mate(root_dir, cam_name, img_size, max_depth, show_pc:bool = False, vis
     color_dir = root_dir  / f"color_{cam_name}"
     depth_dir = root_dir  / f"depth_{cam_name}"
     pose_dir  = root_dir  / f"pose"
-    
+
     num_img = len(os.listdir(color_dir))
     
     
@@ -591,7 +606,13 @@ def idx_to_frame_str(frame_index):
 def idx_to_img_filename(frame_index):
     return f'{idx_to_frame_str(frame_index)}.jpg'
 
-
+def get_valid_mask(mask_fname):
+    arr_ = np.load(mask_fname)['arr_0']
+    ret = np.zeros_like(arr_).astype(np.bool8)
+    for cls in cityscapes_classes_valid:
+        ind = cityscapes_classes_ind_map[cls]
+        ret[arr_ == ind] = True
+    return ret.squeeze()
 
 def main(args):
     for scene_id in args.scene_name:
@@ -601,8 +622,6 @@ def main(args):
 
                 dest = Path(args.data_dir) / scene_id
                 dest.mkdir(exist_ok=True)
-
-                
                 output_path = Path(args.output_path) / f"preprocessed" / scene_id
                 
                 rgb_dest = output_path / "images"
@@ -644,6 +663,7 @@ def main(args):
                         scene_observers[str_]['data']['global_frame_ind'].append(i)
                     
                     lidar_dest = output_path / "lidars" / f"lidar_{camName}"
+                    mask_dest = output_path / "masks" / str_
                     os.makedirs(str(lidar_dest), exist_ok=True)
                     # create_validation_set(save_path, 0.1)
                     str_ = f"lidar_{camName}"
@@ -660,12 +680,15 @@ def main(args):
                         directions = get_ray_directions_use_intrinsics(args.img_size[0], args.img_size[1], intrinsic.numpy())
                         rays_o, rays_d = get_rays(directions, c2w)
 
-                        selected_rays_o, selected_rays_d, distance = calculate_pc_distance(rays_o.numpy(), rays_d.numpy(), intrinsic, z_depth, 1000.0, scale=1.0)
+                        mask_fname =  mask_dest / f'{idx_to_frame_str(i)}.npz'
+                        valid_mask = get_valid_mask(mask_fname)
+                        selected_rays_o, selected_rays_d, distance = calculate_pc_distance(rays_o.numpy(), rays_d.numpy(), intrinsic, 
+                                                                                            z_depth, 1000.0, scale=1.0, mask=valid_mask)
                         fake_rays_o = np.zeros_like(selected_rays_d)    
                         img_name = f'{idx_to_frame_str(i)}.npz'
                         npz_path = lidar_dest / img_name
 
-                        np.savez_compressed(npz_path, rays_o=fake_rays_o, rays_d=selected_rays_d, ranges=distance)
+                        np.savez_compressed(npz_path, rays_o=selected_rays_o, rays_d=selected_rays_d, ranges=distance)
                         extrinsic = np.reshape(np.eye(4), [4, 4])
                         #------------------------------------------------------
                         #------------------     Lidars      -------------------
