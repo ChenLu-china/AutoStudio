@@ -1,7 +1,10 @@
 /**
 * This file is part of autostudio
 * Copyright (C) 
-**/
+* @file   
+* @author 
+* @brief 
+*/
 
 
 #ifndef HASHMAP_H
@@ -12,7 +15,9 @@
 #include "../../common/mlp/TinyMLP.h"
 #include "../../common/include/FieldModel.h"
 
-namespace AutoStudio {
+
+namespace AutoStudio
+{
 
 #define N_CHANNELS 2
 #define N_LEVELS 16  // arranged into L levels in instant-ngp

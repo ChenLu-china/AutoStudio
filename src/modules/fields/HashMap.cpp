@@ -1,7 +1,11 @@
 /**
 * This file is part of autostudio
 * Copyright (C) 
-**/
+*  @file   
+*  @author 
+*  @brief 
+*/
+
 
 #include <torch/torch.h>
 #include "include/HashMap.h"
@@ -9,6 +13,7 @@
 
 namespace AutoStudio
 {
+
 using Tensor = torch::Tensor;
 
 TORCH_LIBRARY(dec_hash3d_vertex, m)
@@ -44,8 +49,8 @@ AutoStudio::Hash3DVertex::Hash3DVertex(GlobalData* global_data)
     // std::cout << n_volumes_ << std::endl;
 
     // Get different prime numbers
-    auto is_prim = [](int x){
-        for (int i = 2; i * i <= x; ++i){
+    auto is_prim = [](int x) {
+        for (int i = 2; i * i <= x; ++i) {
             if (x % i == 0) return false;
         }
         return true;
@@ -57,7 +62,7 @@ AutoStudio::Hash3DVertex::Hash3DVertex(GlobalData* global_data)
     int max_local_prim = 1 << 30;
     // std::cout << n_volumes_ << std::endl;
     // std::cout << 3 * N_LEVELS * n_volumes_ << std::endl;
-    for (int i = 0; i < 3 * N_LEVELS * n_volumes_; ++i){
+    for (int i = 0; i < 3 * N_LEVELS * n_volumes_; ++i) {
         int val;
         do {
             val = torch::randint(min_local_prim, max_local_prim, {1}, CPUInt).item<int>();
@@ -73,20 +78,17 @@ AutoStudio::Hash3DVertex::Hash3DVertex(GlobalData* global_data)
 
     if (config["rand_bias"].as<bool>()) {
         bias_pool_ = (torch::rand({ N_LEVELS * n_volumes_, 3}, CUDAFloat) * 1000.f + 100.f).contiguous();
-    }
-    else {
+    } else {
         bias_pool_ = torch::zeros({N_LEVELS * n_volumes_, 3}, CUDAFloat).contiguous();
     }
 
     // size of each level & each volume
-    {
-        int local_size = pool_size_ / N_LEVELS;
-        // std::cout << local_size << std::endl;
-        local_size = (local_size >> 4) << 4;
-        feat_local_size_ = torch::full( { N_LEVELS }, local_size, CUDAInt).contiguous();
-        feat_local_idx_ = torch::cumsum(feat_local_size_, 0) - local_size;
-        feat_local_idx_ = feat_local_idx_.to(torch::kInt32).contiguous();
-    }
+    int local_size = pool_size_ / N_LEVELS;
+    // std::cout << local_size << std::endl;
+    local_size = (local_size >> 4) << 4;
+    feat_local_size_ = torch::full( { N_LEVELS }, local_size, CUDAInt).contiguous();
+    feat_local_idx_ = torch::cumsum(feat_local_size_, 0) - local_size;
+    feat_local_idx_ = feat_local_idx_.to(torch::kInt32).contiguous();
 
     // initial MLP
     mlp_ = std::make_unique<TMLP>(global_data, N_LEVELS * N_CHANNELS, mlp_out_dim_, mlp_hidden_dim_, n_hidden_layers_);

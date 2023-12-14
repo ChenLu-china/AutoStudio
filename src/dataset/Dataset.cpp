@@ -1,7 +1,10 @@
 /**
 * This file is part of autostudio
 * Copyright (C) 
-**/
+* @file   
+* @author 
+* @brief 
+*/
 
 
 #include <iostream>
@@ -41,8 +44,7 @@ Dataset::Dataset(GlobalData *global_data):
   std::vector<std::string> new_images_fnames;
   
   {
-    for (int i = 0; i < n_camera_; ++i)
-    {
+    for (int i = 0; i < n_camera_; ++i) {
       std::string cam_name = cam_list[i].as<std::string>();
       std::cout<< cam_name <<std::endl;
       
@@ -142,8 +144,7 @@ Tensor Dataset::GetFullData_Tensor(std::string dType, bool device)
 {
   std::vector<Tensor> outs;
   Tensor outs_tensor;
-  switch (DataShit(dType))
-  {
+  switch (DataShit(dType)) {
     case DataCode::C2W:
       for (int i = 0; i < n_camera_; ++i) {
         auto camera = cameras_[i];
@@ -182,10 +183,10 @@ Tensor Dataset::GetFullData_Tensor(std::string dType, bool device)
       break;
 
     case DataCode::BOUND:
-      for (int i = 0; i < n_camera_; ++i){
+      for (int i = 0; i < n_camera_; ++i) {
         auto camera = cameras_[i];
         auto images = camera.images_;
-        for (int j = 0; j < camera.n_images_; ++j){
+        for (int j = 0; j < camera.n_images_; ++j) {
           Tensor bounds = torch::stack({
                                   torch::full({ 1 }, images[j].near_, CPUFloat),
                                   torch::full({ 1 }, images[j].far_,  CPUFloat)

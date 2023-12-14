@@ -1,10 +1,11 @@
 /**
 * This file is part of auto_studio
 * Copyright (C) 
-*  @file   camera.h
-*  @author LuChen, 
+*  @file   Sampler.cpp
+*  @author 
 *  @brief 
 */
+
 
 #include <string>
 #include <fmt/core.h>
@@ -12,6 +13,7 @@
 #include "Sampler.h"
 #include "../../Common.h"
 #include "../../utils/GlobalData.h"
+
 
 namespace AutoStudio
 {
@@ -30,7 +32,7 @@ Sampler::Sampler(GlobalData* global_data):
         ray_sample_mode_ = RaySampleMode::SINGLE_IMAGE;
     } else if (ray_sample_mode == "all_images") {
         ray_sample_mode_  = RaySampleMode::ALL_IMAGES;
-    } else if (ray_sample_mode == "multi_images"){
+    } else if (ray_sample_mode == "multi_images") {
         ray_sample_mode_  = RaySampleMode::MULTI_IMAGES;
     }
     else {
@@ -58,15 +60,14 @@ Sampler* Sampler::GetInstance(std::vector<Image> images, Tensor train_set, Tenso
         ray_sampler->test_set_ = test_set;
         ray_sampler->GenAllRays();
         return ray_sampler;
-    } else if(ray_sample_mode_ == 2){
+    } else if(ray_sample_mode_ == 2) {
         auto ray_sampler = new OriSampler(global_data_);
         ray_sampler->images_ = images;
         ray_sampler->train_set_ = train_set;
         ray_sampler->test_set_ = test_set;
         ray_sampler->GatherData();
         return ray_sampler;
-    } 
-    else {
+    } else {
         std::cout << "Not Exist Correct Object Sampler" << std::endl;
         return nullptr;
     }
@@ -271,7 +272,7 @@ void OriSampler::GatherData()
                                    torch::full({ 1 }, images_[i].far_)
                                }, -1).contiguous();
         ranges.push_back(range);
-        if (i == 0){
+        if (i == 0) {
             height_ = images_[i].height_;
             width_ = images_[i].width_;
         }
