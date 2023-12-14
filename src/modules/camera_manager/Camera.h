@@ -1,9 +1,9 @@
 /**
 * This file is part of auto_studio
 * Copyright (C) 
-*  @file   camera.h
-*  @author LuChen, 
-*  @brief 
+* @file   camera.h
+* @author LuChen, 
+* @brief 
 */
 
 
@@ -14,6 +14,7 @@
 #include "Rays.h"
 #include "Image.h"
 
+
 namespace AutoStudio
 {
 
@@ -21,8 +22,8 @@ using Tensor = torch::Tensor;
 
 const int CAMERA_COUNT = 3;
 
-class Camera{
-
+class Camera
+{
 public:
   // functions
   Camera(const std::string& base_dir, const std::string& cam_name, float factor, std::vector<float> bounds_factor);

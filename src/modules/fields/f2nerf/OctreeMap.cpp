@@ -1,12 +1,19 @@
 /**
 * This file is part of autostudio
 * Copyright (C) 
-**/
+* @file   
+* @author 
+* @brief 
+*/
+
+
 #include <torch/torch.h>
 #include "OctreeMap.h"
 
+
 namespace AutoStudio
 {
+
 using Tensor = torch::Tensor;
 namespace F =torch::nn::functional;
 
@@ -59,12 +66,13 @@ OctreeMap::OctreeMap(GlobalData* global_data)
     app_emb_.requires_grad_(true);
 
     auto bg_color = config["bg_color"].as<std::string>();
-    if (bg_color == "white")
+    if (bg_color == "white") {
         bg_color_type_ = BGColorType::white;
-    else if (bg_color == "black")
+    } else if (bg_color == "black") {
         bg_color_type_ = BGColorType::black;
-    else
+    } else {
         bg_color_type_ = BGColorType::rand_noise;
+    }
 }
 
 
@@ -89,20 +97,17 @@ RenderResult OctreeMap::Render(const Tensor& rays_o,
     Tensor bg_color;
     if (bg_color_type_ == BGColorType::white) {
         bg_color = torch::ones({n_rays, 3}, CUDAFloat);
-    }
-    else if (bg_color_type_ == BGColorType::rand_noise) {
+    } else if (bg_color_type_ == BGColorType::rand_noise) {
         if (global_data_->mode_ == RunningMode::TRAIN) {
             bg_color = torch::rand({n_rays, 3}, CUDAFloat);
-        }
-        else {
+        } else {
             bg_color = torch::ones({n_rays, 3}, CUDAFloat) * .5f;
         }
-    }
-    else {
+    } else {
         bg_color = torch::zeros({n_rays, 3}, CUDAFloat);
     }
 
-    if (n_all_pts <= 0){
+    if (n_all_pts <= 0) {
         Tensor colors = bg_color;
         if (global_data_->mode_ == RunningMode::TRAIN) {
             global_data_->meaningful_sampled_pts_per_ray_ = global_data_->meaningful_sampled_pts_per_ray_ * 0.9f;
@@ -189,8 +194,7 @@ RenderResult OctreeMap::Render(const Tensor& rays_o,
         Tensor all_feat = hashmap_->AnchoredQuery(query_pts, query_anchors);
         scene_feat = all_feat.slice(0, 0, n_all_pts);
         edge_feat = all_feat.slice(0, n_all_pts, n_all_pts + n_edge_pts * 2).reshape({ n_edge_pts, 2, -1 });
-    }
-    else {
+    } else {
         // Query density &gra color
         scene_feat = hashmap_->AnchoredQuery(pts, anchors);  // [n_pts, feat_dim];
     }
@@ -241,19 +245,21 @@ void OctreeMap::VisOctree()
 
     auto& octree_nodes = octree_->octree_nodes_;
     int n_nodes = octree_->octree_nodes_.size();
-    for(const auto& node : octree_nodes){
-        for(int st = 0; st < 8; ++st){
+    for (const auto& node : octree_nodes) {
+        for (int st = 0; st < 8; ++st) {
             Wec3f xyz = node.center_ + Wec3f(((st >> 2 & 1) - 0.5f), ((st >> 1 & 1) - 0.5f), ((st >> 0 & 1) - 0.5f)) * node.extend_len_;
             f << "v " << xyz[0] << " " << xyz[1] << " " << xyz[2] << std::endl;
         }
     }
 
-    for(int i = 0; i< n_nodes; ++i){
-        if (octree_nodes[i].trans_idx_ < 0) { continue; }
-        for (int a = 0; a < 8; ++a){
-            for(int b = a + 1; b < 8; ++b){
+    for (int i = 0; i< n_nodes; ++i) {
+        if (octree_nodes[i].trans_idx_ < 0) { 
+            continue;
+        }
+        for (int a = 0; a < 8; ++a) {
+            for (int b = a + 1; b < 8; ++b) {
                 int st = (a ^ b);
-                if (st == 1 || st == 2 || st == 4){
+                if (st == 1 || st == 2 || st == 4) {
                    f << "l " << i * 8 + a + 1 << " " << i * 8 + b + 1 << std::endl;
                 }
             }
@@ -264,26 +270,26 @@ void OctreeMap::VisOctree()
 }
 
 
-std::vector<torch::optim::OptimizerParamGroup> OctreeMap::OptimParamGroups() {
+std::vector<torch::optim::OptimizerParamGroup> OctreeMap::OptimParamGroups()
+{
 
     std::vector<torch::optim::OptimizerParamGroup> ret;
     for (auto model : sub_models_) {
         auto cur_params = model->OptimParamGroups();
-        for (const auto& para_group : cur_params){
+        for (const auto& para_group : cur_params) {
             ret.emplace_back(para_group);
         }
     }
 
-    {
-        auto opt = std::make_unique<torch::optim::AdamOptions>(global_data_->learning_rate_);
-        opt->betas() = {0.9, 0.99};
-        opt->eps() = 1e-15;
-        opt->weight_decay() = 1e-6;
+    auto opt = std::make_unique<torch::optim::AdamOptions>(global_data_->learning_rate_);
+    opt->betas() = {0.9, 0.99};
+    opt->eps() = 1e-15;
+    opt->weight_decay() = 1e-6;
 
-        std::vector<Tensor> params;
-        params.push_back(app_emb_);
-        ret.emplace_back(std::move(params), std::move(opt));
-    }
+    std::vector<Tensor> params;
+    params.push_back(app_emb_);
+    ret.emplace_back(std::move(params), std::move(opt));
+
     return ret;
 }
 
@@ -331,7 +337,7 @@ int OctreeMap::LoadStates(const std::vector<Tensor>& states, int idx)
     octree_->tree_alpha_stats_ = torch::full({ int(octree_->octree_nodes_.size()) }, INIT_NODE_STAT, CUDAInt);
 
     int valid_nodes = 0;
-    for(int i = 0; i < octree_->octree_nodes_.size(); ++i){
+    for (int i = 0; i < octree_->octree_nodes_.size(); ++i) {
         if (octree_->octree_nodes_[i].trans_idx_ >= 0){
             valid_nodes++;
         }

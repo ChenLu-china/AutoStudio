@@ -1,7 +1,9 @@
 /**
 * This file is part of autostudio
 * Copyright (C) 
-* @brief
+* @file   
+* @author 
+* @brief 
  * 1. set max depth of octree
  * 2. set max size of cube
  * 3. 

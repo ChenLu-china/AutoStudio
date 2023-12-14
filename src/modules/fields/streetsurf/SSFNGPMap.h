@@ -1,7 +1,10 @@
 /**
 * This file is part of autostudio
 * Copyright (C) 
-**/
+* @file   
+* @author 
+* @brief 
+*/
 
 
 #ifndef SSFNGPMAP_H
@@ -10,6 +13,7 @@
 #include "../../../Common.h"
 #include "../../../dataset/Dataset.h"
 #include "../../common/include/FieldModel.h"
+
 
 namespace AutoStudio
 {

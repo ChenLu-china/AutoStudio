@@ -1,7 +1,10 @@
 /**
 * This file is part of autostudio
 * Copyright (C) 
-**/
+* @file   
+* @author 
+* @brief 
+*/
 
 
 #ifndef OCTREEMAP_H
@@ -15,6 +18,7 @@
 #include "../../../utils/CustomOps/CustomOps.h"
 #include "../../../utils/CustomOps/FlexOps.h"
 #include "../../../utils/CustomOps/Scatter.h"
+
 
 namespace AutoStudio
 {
