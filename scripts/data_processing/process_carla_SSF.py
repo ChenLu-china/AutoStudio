@@ -252,7 +252,7 @@ def depth2localpcd(depth, k, scale, color=None, max_depth=0.05):
     p3d = np.transpose(p3d)
     return p3d, color  
 
-def calculate_pc_distance(rays_o, rays_d, k, normalized_depth, far, scale, max_depth=70.0, mask=None):
+def calculate_pc_distance(rays_o, rays_d, k, normalized_depth, far, scale, max_depth=30.0, mask=None):
     # H, W = img_size
     far = far * scale
     z_depth = normalized_depth.reshape(-1) * far
@@ -680,8 +680,12 @@ def main(args):
                         directions = get_ray_directions_use_intrinsics(args.img_size[0], args.img_size[1], intrinsic.numpy())
                         rays_o, rays_d = get_rays(directions, c2w)
 
-                        mask_fname =  mask_dest / f'{idx_to_frame_str(i)}.npz'
-                        valid_mask = get_valid_mask(mask_fname)
+                        if mask_dest.exists() and len(cityscapes_classes_valid) > 0:
+                            mask_fname =  mask_dest / f'{idx_to_frame_str(i)}.npz'
+                            valid_mask = get_valid_mask(mask_fname)
+                        else:
+                            valid_mask = None
+                        
                         selected_rays_o, selected_rays_d, distance = calculate_pc_distance(rays_o.numpy(), rays_d.numpy(), intrinsic, 
                                                                                             z_depth, 1000.0, scale=1.0, mask=valid_mask)
                         fake_rays_o = np.zeros_like(selected_rays_d)    

@@ -232,7 +232,7 @@ void Runner::Train()
   }
 
   std::cout << "Train done, test." <<std::endl;
-    // TestImages();
+  TestImages();
 }
 
 void Runner::Execute()
@@ -302,6 +302,59 @@ void Runner::VisualizeImage(int idx)
   
   global_data_->mode_ = prev_mode;
 }
+
+void Runner::TestImages()
+{
+  torch::NoGradGuard no_grad_guard;
+  auto prev_mode = global_data_->mode_;
+  global_data_->mode_ = RunningMode::VALIDATE;
+  float psnr_sum = 0.f;
+  float cnt = 0.f;
+  YAML::Node out_info;
+  {
+    fs::create_directories(base_exp_dir_ + "/test_images");
+    for ( int i=0; i < dataset_->test_set_.sizes()[0]; ++i ) {
+      int index = dataset_->test_set_.index({i}).item<int>();
+      auto [test_rays, rgb_gt] = dataset_->sampler_->TestRays(index);
+      auto [pred_colors, first_oct_dis, pred_disps] = RenderWholeImage(test_rays.origins, test_rays.dirs, test_rays.ranges);  // At this stage, the returned number is
+
+      auto [H, W] = dataset_->sampler_->Get_HW(index);
+      // int H = dataset_->height_;
+      // int W = dataset_->width_;
+
+      auto quantify = [](const Tensor& x) {
+        return (x.clip(0.f, 1.f) * 255.f).to(torch::kUInt8).to(torch::kFloat32) / 255.f;
+      };
+      pred_disps = pred_disps.reshape({H, W, 1});
+      first_oct_dis = first_oct_dis.reshape({H, W, 1});
+      pred_colors = pred_colors.reshape({H, W, 3});
+      pred_colors = quantify(pred_colors);
+      float mse = (pred_colors.reshape({H, W, 3}) -
+                   dataset_->sampler_->images_[index].img_tensor_.to(torch::kCPU).reshape({H, W, 3})).square().mean().item<float>();
+      float psnr = 20.f * std::log10(1 / std::sqrt(mse));
+      out_info[fmt::format("{}", i)] = psnr;
+      std::cout << fmt::format("{}: {}", i, psnr) << std::endl;
+      psnr_sum += psnr;
+      cnt += 1.f;
+      WriteImageTensor(base_exp_dir_ + "/test_images/" + fmt::format("color_{}_{:0>3d}.png", iter_step_, index),
+                             pred_colors);
+      WriteImageTensor(base_exp_dir_ + "/test_images/" + fmt::format("depth_{}_{:0>3d}.png", iter_step_, index),
+                              pred_disps.repeat({1, 1, 3}));
+      WriteImageTensor(base_exp_dir_ + "/test_images/" + fmt::format("oct_depth_{}_{:0>3d}.png", iter_step_, index),
+                             first_oct_dis.repeat({1, 1, 3}));
+
+    }
+  }
+  float mean_psnr = psnr_sum / cnt;
+  std::cout << fmt::format("Mean psnr: {}", mean_psnr) << std::endl;
+  out_info["mean_psnr"] = mean_psnr;
+
+  std::ofstream info_fout(base_exp_dir_ + "/test_images/info.yaml");
+  info_fout << out_info;
+
+  global_data_->mode_ = prev_mode;
+}
+
 
 void Runner::LoadCheckpoint(const std::string& path)
 {

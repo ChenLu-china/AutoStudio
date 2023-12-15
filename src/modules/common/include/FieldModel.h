@@ -1,9 +1,9 @@
 /**
 * This file is part of auto_studio
 * Copyright (C) 
-* @file   FieldModel.h
-* @author LuChen, 
-* @brief 
+*  @file   FieldModel.h
+*  @author LuChen, ZhenJun Zhao
+*  @brief 
 */
 
 
