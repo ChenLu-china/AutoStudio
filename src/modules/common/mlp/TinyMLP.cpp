@@ -2,7 +2,7 @@
 * This file is part of auto_studio
 * Copyright (C) 
 *  @file   
-*  @author LuChen, 
+*  @author LuChen, ZhenJun Zhao
 *  @brief 
 */
 
@@ -47,11 +47,11 @@ void* void_data_ptr(torch::Tensor& tensor)
     }
 }
 
-c10::ScalarType torch_type(tcnn::cpp::EPrecision precision)
+c10::ScalarType torch_type(tcnn::cpp::Precision precision)
 {
     switch (precision) {
-        case tcnn::cpp::EPrecision::Fp32: return torch::kFloat32;
-        case tcnn::cpp::EPrecision::Fp16: return torch::kHalf;
+        case tcnn::cpp::Precision::Fp32: return torch::kFloat32;
+        case tcnn::cpp::Precision::Fp16: return torch::kHalf;
         default: throw std::runtime_error{"Unknown precision tcnn->torch"};
     }
 }

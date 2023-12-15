@@ -11,7 +11,7 @@ exp_name: test
 
 mode: train
 
-is_continue: false
+is_continue: true
 
 models:
   use_app_emb: true

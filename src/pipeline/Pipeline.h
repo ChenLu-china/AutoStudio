@@ -30,6 +30,7 @@ public:
 
   void Train();
   void Render();
+  void TestImages();
   void VisualizeImage(int idx);
   void UpdateAdaParams();
   void LoadCheckpoint(const std::string& path);

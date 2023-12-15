@@ -23,3 +23,4 @@ pretrained_models
 
 image_list.txt
 runtime_config.yaml
+auto_studio.egg-info
