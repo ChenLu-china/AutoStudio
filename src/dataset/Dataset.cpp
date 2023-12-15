@@ -43,23 +43,21 @@ Dataset::Dataset(GlobalData *global_data):
   std::vector<std::vector<std::string>> images_fnames;
   std::vector<std::string> new_images_fnames;
   
-  {
-    for (int i = 0; i < n_camera_; ++i) {
-      std::string cam_name = cam_list[i].as<std::string>();
-      std::cout<< cam_name <<std::endl;
-      
-      // load data order by camera 
-      AutoStudio::Camera camera = AutoStudio::Camera(data_path, cam_name, factor, bounds_factor);
-      
-      // make data id under full space
-      Set_Shift(camera.train_set_,  n_images_);
-      Set_Shift(camera.test_set_, n_images_);
-      train_set.push_back(camera.train_set_);
-      test_set.push_back(camera.test_set_);
+  for (int i = 0; i < n_camera_; ++i) {
+    std::string cam_name = cam_list[i].as<std::string>();
+    std::cout<< cam_name <<std::endl;
+    
+    // load data order by camera 
+    AutoStudio::Camera camera = AutoStudio::Camera(data_path, cam_name, factor, bounds_factor);
+    
+    // make data id under full space
+    Set_Shift(camera.train_set_,  n_images_);
+    Set_Shift(camera.test_set_, n_images_);
+    train_set.push_back(camera.train_set_);
+    test_set.push_back(camera.test_set_);
 
-      n_images_ = n_images_ + camera.n_images_;
-      cameras_.push_back(camera);
-    }
+    n_images_ = n_images_ + camera.n_images_;
+    cameras_.push_back(camera);
   }
   // Normalize camera poses under a unit
   Normalize();

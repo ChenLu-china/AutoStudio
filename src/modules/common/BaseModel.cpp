@@ -1,7 +1,11 @@
 /**
 * This file is part of autostudio
 * Copyright (C) 
-**/
+* @file   
+* @author 
+* @brief 
+*/
+
 
 #include <torch/torch.h>
 #include "include/BaseModel.h"
@@ -12,14 +16,16 @@ namespace AutoStudio
 
 using Tensor = torch::Tensor;
 
-int BaseModel::LoadStates(const std::vector<Tensor>& states, int idx){
-    for (auto model : sub_models_){
+int BaseModel::LoadStates(const std::vector<Tensor>& states, int idx)
+{
+    for (auto model : sub_models_) {
         idx = model->LoadStates(states, idx);
     }
     return idx;
 }
 
-std::vector<Tensor> BaseModel::States() {
+std::vector<Tensor> BaseModel::States()
+{
   std::vector<Tensor> ret;
   for (auto model : sub_models_) {
     auto cur_states = model->States();
@@ -28,7 +34,8 @@ std::vector<Tensor> BaseModel::States() {
   return ret;
 }
 
-std::vector<torch::optim::OptimizerParamGroup> BaseModel::OptimParamGroups() {
+std::vector<torch::optim::OptimizerParamGroup> BaseModel::OptimParamGroups()
+{
   std::vector<torch::optim::OptimizerParamGroup> ret;
   for (auto model : sub_models_) {
     auto cur_params = model->OptimParamGroups();
@@ -39,11 +46,13 @@ std::vector<torch::optim::OptimizerParamGroup> BaseModel::OptimParamGroups() {
   return ret;
 }
 
-void BaseModel::RegisterSubPipe(BaseModel* sub_model) {
+void BaseModel::RegisterSubPipe(BaseModel* sub_model)
+{
   sub_models_.push_back(sub_model);
 }
 
-void BaseModel::Reset() {
+void BaseModel::Reset()
+{
   for (auto model : sub_models_) {
     model->Reset();
   }

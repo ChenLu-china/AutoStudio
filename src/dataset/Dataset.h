@@ -13,7 +13,6 @@
 #include "../Common.h"
 #include "../utils/GlobalData.h"
 #include "../modules/camera_manager/Camera.h"
-#include "../modules/camera_manager/Rays.h"
 #include "../modules/camera_manager/Sampler.h"
 
 

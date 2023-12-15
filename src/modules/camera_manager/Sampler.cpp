@@ -1,9 +1,9 @@
 /**
 * This file is part of auto_studio
 * Copyright (C) 
-*  @file   Sampler.cpp
-*  @author 
-*  @brief 
+* @file   Sampler.cpp
+* @author 
+* @brief 
 */
 
 
@@ -230,8 +230,11 @@ std::tuple<RangeRays, Tensor, Tensor> RaySampler::GetTrainRays()
 {
     int64_t end_idx = cur_idx_ + batch_size_;
     int64_t batch_size; 
-    if (end_idx > n_rays_) { batch_size = n_rays_ - cur_idx_; }
-    else { batch_size = batch_size_; } 
+    if (end_idx > n_rays_) {
+        batch_size = n_rays_ - cur_idx_;
+    } else {
+        batch_size = batch_size_;
+    } 
     
     Tensor sel_idx    = rays_idx_.index({Slc(cur_idx_, cur_idx_ + batch_size)});
     Tensor sel_rays_o = rays_o_.index({sel_idx}).contiguous();
@@ -262,7 +265,7 @@ void OriSampler::GatherData()
 {   
     std::vector<Tensor> images, poses, intris, dist_params, ranges;
     int n = int(images_.size());
-    for (int i = 0; i < n; ++i){
+    for (int i = 0; i < n; ++i) {
         images.push_back(images_[i].img_tensor_);
         poses.push_back(images_[i].c2w_);
         intris.push_back(images_[i].intri_);
@@ -310,6 +313,5 @@ std::tuple<RangeRays, Tensor, Tensor> OriSampler::GetTrainRays(){
     Tensor ranges = ranges_.index({cam_indices.to(torch::kLong)}).contiguous();
     return { { rays_o, rays_d, ranges }, gt_colors, cam_indices.to(torch::kInt32).contiguous() };
 }
-
 
 } //namespace AutoStudio

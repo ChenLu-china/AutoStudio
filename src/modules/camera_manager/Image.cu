@@ -1,23 +1,26 @@
 /**
 * This file is part of auto_studio
 * Copyright (C) 
-*  @file   camera.h
-*  @author LuChen, 
-*  @brief 
+* @file   Image.cu
+* @author LuChen, 
+* @brief 
 */
 
 
 #include <torch/torch.h>
 #include <Eigen/Eigen>
 #include "Image.h"
-#include "Rays.h"
 #include "../../Common.h"
 
+
+namespace AutoStudio
+{
 
 using Tensor = torch::Tensor;
 
 template <typename T>
-__device__ __host__ inline void apply_camera_distortion(const T* extra_params, const T u, const T v, T* du, T* dv) {
+__device__ __host__ inline void apply_camera_distortion(const T* extra_params, const T u, const T v, T* du, T* dv)
+{
   const T k1 = extra_params[0];
   const T k2 = extra_params[1];
   const T p1 = extra_params[2];
@@ -34,7 +37,8 @@ __device__ __host__ inline void apply_camera_distortion(const T* extra_params, c
 
 // This implementation is from instant-ngp
 template <typename T>
-__device__ __host__ inline void iterative_camera_undistortion(const T* params, T* u, T* v) {
+__device__ __host__ inline void iterative_camera_undistortion(const T* params, T* u, T* v)
+{
   // Parameters for Newton iteration using numerical differentiation with
   // central differences, 100 iterations should be enough even for complex
   // camera models with higher order terms.
@@ -81,7 +85,8 @@ __global__ void Img2WorldRayKernel(int n_rays,
                                    int cam_idx,
                                    Wec2f* ij,
                                    Wec3f* out_rays_o,
-                                   Wec3f* out_rays_d) {
+                                   Wec3f* out_rays_d)
+{
   int ray_idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (ray_idx >= n_rays) { return; }
 
@@ -101,7 +106,8 @@ __global__ void Img2WorldRayKernel(int n_rays,
   out_rays_o[ray_idx] = poses[cam_idx].block<3, 1>(0, 3);
 }
 
-std::tuple<Tensor, Tensor> AutoStudio::Image::Img2WorldRayFlex(const Tensor& ij) {
+std::tuple<Tensor, Tensor> AutoStudio::Image::Img2WorldRayFlex(const Tensor& ij)
+{
   Tensor ij_shift = (ij + .5f).contiguous();
   // std::cout << ij_shift[1][1] <<std::endl;
   // std::cout << "pass1" <<std::endl;
@@ -134,3 +140,5 @@ std::tuple<Tensor, Tensor> AutoStudio::Image::Img2WorldRayFlex(const Tensor& ij)
 
   return { rays_o, rays_d };
 }
+
+} // namespace AutoStudio

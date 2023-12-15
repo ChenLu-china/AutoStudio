@@ -1,9 +1,9 @@
 /**
 * This file is part of auto_studio
 * Copyright (C) 
-*  @file   camera.h
-*  @author LuChen, 
-*  @brief 
+* @file   Image.h
+* @author LuChen, 
+* @brief 
 */
 
 
@@ -32,10 +32,9 @@ Image::Image(const std::string& base_dir, const std::string& img_path, const flo
   intri_fname_ = base_dir + "/"  + "intrinsic" + "/" + filename + ".npy";
   
   Tensor img_tensor = ReadImageTensor(img_fname_);
-  if(img_tensor.sizes()[2] == 4){
+  if (img_tensor.sizes()[2] == 4) {
     img_tensor_ = img_tensor.index({Slc(), Slc(), Slc(0, 3)});
-  }
-  else{
+  } else {
     img_tensor_ = img_tensor;
   }
 

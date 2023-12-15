@@ -135,8 +135,7 @@ variable_list TMLPFunction::forward(AutogradContext *ctx,
     tcnn::cpp::Context tmlp_ctx;
     if (!input.requires_grad() && !params.requires_grad()) {
         tmlp_wp->module_->inference(stream, batch_size, input.data_ptr<float>(), void_data_ptr(output), void_data_ptr(params));
-    }
-    else{
+    } else{
         tmlp_ctx = tmlp_wp->module_->forward(stream, batch_size, input.data_ptr<float>(), 
                                             void_data_ptr(output), void_data_ptr(params),
                                             input.requires_grad());
@@ -157,7 +156,7 @@ variable_list TMLPFunction::backward(AutogradContext *ctx,
     auto tmlp_wp = info_ptr->tmlp_;
     float scale = tmlp_wp->loss_scale_;
 
-    if (!tmlp_wp->tmlp_ctx_.ctx){
+    if (!tmlp_wp->tmlp_ctx_.ctx) {
         throw std::runtime_error("Module::bwd: called with invalid context. fwd likely (mistakenly) ran in reference mode.");
     }
 
@@ -195,7 +194,7 @@ variable_list TMLPFunction::backward(AutogradContext *ctx,
 
     Tensor dL_dinput;
     CHECK(input.requires_grad());
-    if (input.requires_grad()){
+    if (input.requires_grad()) {
         dL_dinput = torch::empty({ batch_size, input.size(1) },
                         torch::TensorOptions().dtype(torch::kFloat32).device(device));
     }
@@ -221,7 +220,7 @@ variable_list TMLPFunction::backward(AutogradContext *ctx,
     dL_dparams = (dL_dparams).to(torch::kFloat32) / scale;
     
     if (!torch::all(torch::isfinite(dL_dinput)).item<bool>() || 
-        !torch::all(torch::isfinite(dL_doutput)).item<bool>()){
+        !torch::all(torch::isfinite(dL_doutput)).item<bool>()) {
         tmlp_wp->global_data_->backward_nan_ = true;
         tmlp_wp->loss_scale_ = std::max(tmlp_wp->loss_scale_ / 2.f, 1.f);
     }
@@ -229,12 +228,14 @@ variable_list TMLPFunction::backward(AutogradContext *ctx,
     return {dL_dinput, dL_dparams, Tensor()};
 }
 
-void TMLP::InitParams(){
+void TMLP::InitParams()
+{
     size_t seed = 19970826;
     module_->initialize_params(seed, params_.data_ptr<float>());
 }
 
-int TMLP::LoadStates(const std::vector<Tensor>& states, int idx){
+int TMLP::LoadStates(const std::vector<Tensor>& states, int idx)
+{
     CHECK(false) << "This should be handled by the parent module";
     return idx;
 }
@@ -245,12 +246,14 @@ std::vector<Tensor> TMLP::States()
     return {};
 }
 
-std::vector<torch::optim::OptimizerParamGroup> TMLP::OptimParamGroups(){
+std::vector<torch::optim::OptimizerParamGroup> TMLP::OptimParamGroups()
+{
     CHECK(false) << "This should be handled by the parent module";
     return {};
 }
 
-void TMLP::Reset() {
+void TMLP::Reset()
+{
   CHECK(false) << "This should be handled by the parent module";
 }
 

@@ -1,9 +1,9 @@
 /**
 * This file is part of auto_studio
 * Copyright (C) 
-*  @file   camera.h
-*  @author LuChen, 
-*  @brief 
+* @file   Sampler.h
+* @author LuChen, 
+* @brief 
 */
 
 
@@ -13,6 +13,7 @@
 #include <torch/torch.h>
 #include "Image.h"
 #include "../../utils/GlobalData.h"
+
 
 namespace AutoStudio
 {
@@ -24,7 +25,7 @@ struct alignas(32) Rays{
     Tensor dirs;
 };
 
-struct alignas(32) RangeRays{
+struct alignas(32) RangeRays {
     Tensor origins;
     Tensor dirs;
     Tensor ranges;
@@ -32,8 +33,7 @@ struct alignas(32) RangeRays{
 
 
 class Sampler
-{ 
-
+{
 public: 
 
     Sampler(GlobalData* global_data);

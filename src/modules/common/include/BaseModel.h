@@ -1,13 +1,17 @@
 /**
 * This file is part of autostudio
 * Copyright (C) 
-**/
+* @file   camera.h
+* @author LuChen, 
+* @brief 
+*/
 
 
 #ifndef BASEMODEL_H
 #define BASEMODEL_H
 #include <torch/torch.h>
 #include <vector>
+
 
 namespace AutoStudio
 {

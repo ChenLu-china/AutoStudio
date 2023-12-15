@@ -1,18 +1,21 @@
 /**
 * This file is part of autostudio
 * Copyright (C) 
-**/
+* @file   
+* @author 
+* @brief 
+*/
 
 
 #ifndef TINYMLP_H
 #define TINYMLP_H
-
 #include <tiny-cuda-nn/cpp_api.h>
 #include "../include/FieldModel.h"
 
 
 namespace AutoStudio
 {
+
 using Tensor = torch::Tensor;
 using IValue = torch::IValue;
 using namespace torch::autograd;
@@ -58,4 +61,5 @@ public:
 };
 
 } // namespace AutoStudio
+
 #endif // TINYMLP_H

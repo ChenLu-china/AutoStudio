@@ -11,7 +11,6 @@
 #define CAMERA_H
 #include <string>
 #include <torch/torch.h>
-#include "Rays.h"
 #include "Image.h"
 
 

@@ -1,7 +1,10 @@
 /**
 * This file is part of auto_studio
 * Copyright (C) 
-**/
+* @file   
+* @author 
+* @brief 
+*/
 
 
 #ifndef IMAGE_H
@@ -30,8 +33,7 @@ public:
     int height_, width_;
     float near_, far_, factor_;
     std::string img_fname_, pose_fname_, intri_fname_;
-    Tensor img_tensor_, c2w_, w2c_, intri_, dist_param_;
-    
+    Tensor img_tensor_, c2w_, w2c_, intri_, dist_param_;  
 };
 
 Tensor ReadImageTensor(const std::string& image_path);

@@ -1,19 +1,26 @@
-//
-// Created by ppwang on 2022/9/21.
-//
+/**
+* This file is part of autostudio
+* Copyright (C) 
+* @file   
+* @author 
+* @brief 
+*/
+
 
 #include "Sampler.h"
 #include <torch/torch.h>
 #include <Eigen/Eigen>
 #include "../../Common.h"
 
-namespace AutoStudio{
 
+namespace AutoStudio
+{
 
 using Tensor = torch::Tensor;
 
 template <typename T>
-__device__ __host__ inline void apply_camera_distortion(const T* extra_params, const T u, const T v, T* du, T* dv) {
+__device__ __host__ inline void apply_camera_distortion(const T* extra_params, const T u, const T v, T* du, T* dv)
+{
   const T k1 = extra_params[0];
   const T k2 = extra_params[1];
   const T p1 = extra_params[2];
@@ -30,7 +37,8 @@ __device__ __host__ inline void apply_camera_distortion(const T* extra_params, c
 
 // This implementation is from instant-ngp
 template <typename T>
-__device__ __host__ inline void iterative_camera_undistortion(const T* params, T* u, T* v) {
+__device__ __host__ inline void iterative_camera_undistortion(const T* params, T* u, T* v)
+{
   // Parameters for Newton iteration using numerical differentiation with
   // central differences, 100 iterations should be enough even for complex
   // camera models with higher order terms.
@@ -70,32 +78,15 @@ __device__ __host__ inline void iterative_camera_undistortion(const T* params, T
   *v = x(1);
 }
 
-__global__ void CameraUndistortKernel(int n_pixels, const float* params, float* u, float* v) {
+__global__ void CameraUndistortKernel(int n_pixels, const float* params, float* u, float* v)
+{
   int pix_idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (pix_idx >= n_pixels) { return; }
+  if (pix_idx >= n_pixels) {
+    return;
+  }
 
   iterative_camera_undistortion<float>(params + pix_idx * 4, u + pix_idx, v + pix_idx);
 }
-
-// Input:
-//    cam_xy: the xy coordinates in camera sapce **in OpenGL style**
-//    dist_params: distortion parameters: k1, k2, p1, p2
-// Tensor Dataset::CameraUndistort(const Tensor& cam_xy, const Tensor& dist_params) {
-//   int n_pixels = cam_xy.sizes()[0];
-//   CHECK_EQ(n_pixels, dist_params.sizes()[0]);
-//   Tensor u = cam_xy.index({Slc(), 0}).contiguous();
-//   Tensor v = -cam_xy.index({Slc(), 1}).contiguous();   // OpenGL -> OpenCV
-
-//   CK_CONT(dist_params); CK_CONT(u); CK_CONT(v);
-//   dim3 grid_dim = LIN_GRID_DIM(n_pixels);
-//   dim3 block_dim = LIN_BLOCK_DIM(n_pixels);
-//   CameraUndistortKernel<<<grid_dim, block_dim>>>(n_pixels,
-//                                                  dist_params.data_ptr<float>(),
-//                                                  u.data_ptr<float>(),
-//                                                  v.data_ptr<float>());
-//   return torch::stack({ u, -v }, -1).contiguous();
-// }
-
 
 __global__ void Img2WorldRayKernel(int n_rays,
                                    Watrix34f* poses,
@@ -104,9 +95,12 @@ __global__ void Img2WorldRayKernel(int n_rays,
                                    int* cam_indices,
                                    Wec2f* ij,
                                    Wec3f* out_rays_o,
-                                   Wec3f* out_rays_d) {
+                                   Wec3f* out_rays_d)
+{                                   
   int ray_idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (ray_idx >= n_rays) { return; }
+  if (ray_idx >= n_rays) {
+    return;
+  }
 
   int cam_idx = cam_indices[ray_idx];
   float i = static_cast<float>(ij[ray_idx][0]);
@@ -124,7 +118,8 @@ __global__ void Img2WorldRayKernel(int n_rays,
   out_rays_o[ray_idx] = poses[cam_idx].block<3, 1>(0, 3);
 }
 
-std::tuple<Tensor, Tensor> OriSampler::Img2WorldRayFlex(const Tensor& cam_indices, const Tensor& ij) {
+std::tuple<Tensor, Tensor> OriSampler::Img2WorldRayFlex(const Tensor& cam_indices, const Tensor& ij)
+{
   Tensor ij_shift = (ij + .5f).contiguous();
   CK_CONT(cam_indices);
   CK_CONT(ij_shift);

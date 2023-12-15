@@ -1,14 +1,22 @@
 /**
 * This file is part of autostudio
 * Copyright (C) 
-**/
+* @file   
+* @author 
+* @brief 
+*/
 
 
+#ifndef SHMODEL_H
+#define SHMODEL_H
 #include <torch/torch.h>
 #include "BaseModel.h"
 #include "../../../utils/GlobalData.h"
 
-namespace AutoStudio{
+
+namespace AutoStudio
+{
+
 using Tensor = torch::Tensor;
 
 class Shader : public BaseModel
@@ -24,3 +32,5 @@ public:
 };
 
 } // namespace AutoStudio
+
+#endif // SHMODEL_H

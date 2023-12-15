@@ -1,9 +1,9 @@
 /**
 * This file is part of auto_studio
 * Copyright (C) 
-*  @file   FieldModel.h
-*  @author LuChen, 
-*  @brief 
+* @file   FieldModel.h
+* @author LuChen, 
+* @brief 
 */
 
 
@@ -21,7 +21,8 @@ namespace AutoStudio
 
 using Tensor = torch::Tensor;
 
-struct SampleResultFlex {
+struct SampleResultFlex
+{
   Tensor pts;                           // [ n_all_pts, 3 ]
   Tensor dirs;                          // [ n_all_pts, 3 ]
   Tensor dt;                            // [ n_all_pts, 1 ]
@@ -100,7 +101,6 @@ public:
 
   GlobalData* global_data_;
 };
-
 
 } // namespace AutoStudio
 
