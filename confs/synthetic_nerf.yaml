@@ -3,17 +3,30 @@ defaults:
   - dataset: default
   # - pts_sampler: perspective
   - models: f2
+  - mesh: mesh
   - _self_
 
 dataset_name: synthetic_nerf
 task_name: ngp_fox
 exp_name: test
 
-mode: train
+mode: mesh
 
-is_continue: true
+is_continue: false
 
 models:
   use_app_emb: true
+  near: 0.01
+  scale_by_dis: true
+
+dataset:
+  factor: 1
+  scale_by_dis: true
+
+train:
+  ray_march_init_fineness: 16
+  gradient_scaling_start: 1000
+  gradient_scaling_end: 5000
+  
 
 

@@ -93,8 +93,13 @@ public:
                                 const Tensor& sampled_alpha) {
     CHECK(false) << "Not implemented";
   }
-    
-    
+  /*----------------------------------------Sample Point with density for Octree---------------------------------------------------*/
+  
+  virtual Tensor GetVisDensities(const Tensor& rays_o, const Tensor& rays_d, const Tensor& bounds){
+    CHECK(false) << "Not implemented";
+    return Tensor();
+  }
+
   /*----------------------------------------Sample Point function for Streetsurf-----------------------------------------------*/
 
   enum BGColorType { white, black, rand_noise };

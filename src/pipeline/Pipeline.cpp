@@ -66,6 +66,10 @@ Runner::Runner(const std::string& conf_path)
   //optimize
   optimizer_ = std::make_unique<torch::optim::Adam>(model_pip_->OptimParamGroups());
 
+  //mesh extractor
+  auto mesh_factory = MeshFactory(global_data_.get());
+  mesh_ = mesh_factory.CreateMeshExtractor();
+
   if (config["is_continue"].as<bool>()){
     LoadCheckpoint(base_exp_dir_ + "/checkpoints/latest");
   }
@@ -235,6 +239,20 @@ void Runner::Train()
   TestImages();
 }
 
+ void Runner::Mesh()
+ {
+  torch::NoGradGuard no_grad_gaurd;
+  global_data_->mode_ = RunningMode::VALIDATE;
+  std::string log_dir = base_exp_dir_ + "/logs" + "/mesh_extraction";
+  fs::create_directories(log_dir);
+
+  // std::cout<< conf_path <<std::endl;
+  const auto& config = global_data_->config_;
+  pts_batch_size_ = config["train"]["pts_batch_size"].as<int>();
+  mesh_->GetDensities(model_pip_->field_.get());
+ }
+
+
 void Runner::Execute()
 {
   std::string mode = global_data_->config_["mode"].as<std::string>();
@@ -242,6 +260,17 @@ void Runner::Execute()
   if (mode == "train"){
     Train();
   }
+  else if(mode == "test"){
+    TestImages();
+  }
+  else if (mode == "render_all"){
+    RenderAllImages();
+  }
+  else if (mode == "mesh")
+  {
+    Mesh();
+  }
+  
 }
 
 std::tuple<Tensor, Tensor, Tensor> Runner::RenderWholeImage(Tensor rays_o, Tensor rays_d, Tensor ranges)
@@ -256,13 +285,13 @@ std::tuple<Tensor, Tensor, Tensor> Runner::RenderWholeImage(Tensor rays_o, Tenso
   Tensor first_oct_disp = torch::full({n_rays, 1}, 1.f, CPUFloat);
   Tensor pred_disp = torch::zeros({n_rays, 1}, CPUFloat);
 
-  const int ray_batch_size = 8192;
+  const int ray_batch_size = 10;
   for (int i = 0; i < n_rays; i += ray_batch_size){
     int i_high = std::min(i + ray_batch_size, n_rays);
     Tensor cur_rays_o = rays_o.index({Slc(i, i_high)}).to(torch::kCUDA).contiguous();
     Tensor cur_rays_d = rays_d.index({Slc(i, i_high)}).to(torch::kCUDA).contiguous();
     Tensor cur_ranges = ranges.index({Slc(i, i_high)}).to(torch::kCUDA).contiguous();
-
+    if (i == 0) std::cout << cur_rays_d << std::endl;
     auto render_result = model_pip_->field_->Render(cur_rays_o, cur_rays_d, cur_ranges, Tensor());
     Tensor colors = render_result.colors.detach().to(torch::kCPU);
     Tensor disp = render_result.disparity.detach().to(torch::kCPU).squeeze();
@@ -282,6 +311,13 @@ std::tuple<Tensor, Tensor, Tensor> Runner::RenderWholeImage(Tensor rays_o, Tenso
   
   return { pred_colors, first_oct_disp, pred_disp };
 }
+
+void Runner::RenderAllImages() {
+  for (int idx = 0; idx < dataset_->n_images_; idx++) {
+    VisualizeImage(idx);
+  }
+}
+
 
 void Runner::VisualizeImage(int idx)
 {

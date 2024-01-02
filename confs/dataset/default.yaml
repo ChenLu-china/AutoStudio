@@ -2,7 +2,7 @@ factor: 1.0
 batch_size: 1024
 ray_sample_mode: multi_images  # [single_image, all_images, multi_images]
 data_at_gpu: true
-bounds_factor: [ 0.5, 4.0 ]
+bounds_factor: [ 0.5, 2.0 ]
 # cam_list: ["FRONT", "FRONT_LEFT", "FRONT_RIGHT"]
 cam_list: ["FRONT"]
 

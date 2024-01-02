@@ -16,10 +16,10 @@ ModelPipline::ModelPipline(GlobalData* global_data, int n_images)
     global_data_ = global_data;
     std::cout << "Doing ModelPipline" << std::endl;
     auto conf = global_data->config_["models"];
-    auto field_factor = FieldsFactory(global_data);
+    auto field_factory = FieldsFactory(global_data);
     
     // field construction
-    field_ = field_factor.CreateField();
+    field_ = field_factory.CreateField();
 
     std::cout << "sub_models size is " << field_->sub_models_.size() << std::endl;
     // sh construction

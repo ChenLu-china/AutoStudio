@@ -56,9 +56,13 @@ public:
                         const Tensor& rays_d, 
                         const Tensor& ranges, 
                         const Tensor& emb_idx) override;
-
-    void VisOctree();
     
+    void VisOctree();
+    Tensor GetVisDensities(const Tensor& rays_o, 
+                           const Tensor& rays_d, 
+                           const Tensor& bounds) override;
+    
+
     std::unique_ptr<Octree> octree_;
     std::unique_ptr<Hash3DVertex> hashmap_;
     std::unique_ptr<SHShader> shader_;

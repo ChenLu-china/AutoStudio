@@ -64,6 +64,7 @@ __global__ void FindRayOctreeIntersectionKernel(int n_rays, int max_oct_intersec
                                                 int* oct_intersect_idx, Wec2f* oct_intersect_near_far,
                                                 int* ) 
 {
+    //IMPORTANT FOR NEWER: if your are first contact with octree search read this carefully!!!!! https://chiranjivi.tripod.com/octrav.html
     int ray_idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (ray_idx >= n_rays) {
         return;
@@ -90,8 +91,8 @@ __global__ void FindRayOctreeIntersectionKernel(int n_rays, int max_oct_intersec
     stack_info[0] = 0;  // Root octree node
     stack_info[1] = -1;
 
-    int ray_st = (int(rays_d[0] > 0.f) << 2) | (int(rays_d[1] > 0.f) << 1) | (int(rays_d[2] > 0.f) << 0);
-    search_order += ray_st * 8;
+    int ray_st = (int(rays_d[0] > 0.f) << 2) | (int(rays_d[1] > 0.f) << 1) | (int(rays_d[2] > 0.f) << 0); // set searching step
+    search_order += ray_st * 8; // set search order
     while (stack_ptr >= 0 && intersect_cnt < max_intersect_cnt) {
         int u = stack_info[stack_ptr * 2]; // Octree node idx;
         const auto& node = octree_nodes[u];
@@ -105,6 +106,7 @@ __global__ void FindRayOctreeIntersectionKernel(int n_rays, int max_oct_intersec
                 while (child_ptr < 8 && node.child_[search_order[child_ptr]] < 0) {
                     child_ptr++;
                 }
+                // printf("%d", child_ptr);
                 if (child_ptr < 8) {   // Has childs, push stack
                     stack_info[stack_ptr * 2 + 1] = child_ptr;
                     stack_ptr++;
@@ -204,7 +206,7 @@ __global__ void RayMarchKernel(int n_rays, float sample_l, bool scale_by_dis,
 {
     int ray_idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (ray_idx >= n_rays) {
-    return;
+        return;
     }
 
     rays_noise = rays_noise + ray_idx;
@@ -217,30 +219,30 @@ __global__ void RayMarchKernel(int n_rays, float sample_l, bool scale_by_dis,
 
     int pts_idx = 0;
     if (FILL) {
-    int idx_end = pts_idx_start_end[0];
-    int idx_cnt = pts_idx_start_end[1];
-    pts_idx_start_end[0] = idx_end - idx_cnt;
-    pts_idx_start_end[1] = idx_end;
-    pts_idx = pts_idx_start_end[0];
-    sampled_world_pts = sampled_world_pts + pts_idx;
-    sampled_pts = sampled_pts + pts_idx;
-    sampled_dirs = sampled_dirs + pts_idx;
-    sampled_anchors = sampled_anchors + pts_idx;
-    sampled_dists = sampled_dists + pts_idx;
-    sampled_ts = sampled_ts + pts_idx;
-    sampled_oct_idx = sampled_oct_idx + pts_idx;
+        int idx_end = pts_idx_start_end[0];
+        int idx_cnt = pts_idx_start_end[1];
+        pts_idx_start_end[0] = idx_end - idx_cnt;
+        pts_idx_start_end[1] = idx_end;
+        pts_idx = pts_idx_start_end[0];
+        sampled_world_pts = sampled_world_pts + pts_idx;
+        sampled_pts = sampled_pts + pts_idx;
+        sampled_dirs = sampled_dirs + pts_idx;
+        sampled_anchors = sampled_anchors + pts_idx;
+        sampled_dists = sampled_dists + pts_idx;
+        sampled_ts = sampled_ts + pts_idx;
+        sampled_oct_idx = sampled_oct_idx + pts_idx;
 
-    if (oct_idx_start_end[0] < oct_idx_start_end[1]) {
-        first_oct_dis[ray_idx] = oct_intersect_near_far[0][0];
-    }
-    else {
-        first_oct_dis[ray_idx] = 1e9f;
-    }
+        if (oct_idx_start_end[0] < oct_idx_start_end[1]) {
+            first_oct_dis[ray_idx] = oct_intersect_near_far[0][0];
+        }
+        else {
+            first_oct_dis[ray_idx] = 1e9f;
+        }
     }
     int max_n_samples = FILL ? pts_idx_start_end[1] - pts_idx_start_end[0] : MAX_SAMPLE_PER_RAY;
 
     if (max_n_samples <= 0) {
-    return;
+        return;
     }
 
     int oct_ptr = 0;
@@ -259,64 +261,64 @@ __global__ void RayMarchKernel(int n_rays, float sample_l, bool scale_by_dis,
 
     bool the_first_pts = true;
     while (pts_ptr < max_n_samples && oct_ptr < n_oct_nodes) {
-    Wec3f fill_xyz = Wec3f::Zero();
+        Wec3f fill_xyz = Wec3f::Zero();
 
-    const auto& cur_node = octree_nodes[cur_oct_idx];
+        const auto& cur_node = octree_nodes[cur_oct_idx];
 
-    // Get march step
-    Watrix33f jac = Watrix33f::Zero();
-    const auto& cur_trans = octree_transes[cur_node.trans_idx_];
-    float cur_radius = (rays_o - cur_trans.center).norm() / cur_trans.dis_summary;
-    float cur_radius_clip = fmaxf(cur_radius, 1.f);
-    QueryFrameTransformJac(cur_trans, cur_xyz, &jac);
-    Wec3f proj_xyz = jac * rays_d;
-    float exp_march_step_warp = sample_l * rays_noise[pts_ptr];
-    exp_march_step = exp_march_step_warp / (proj_xyz.norm() + 1e-6f);
-    if (scale_by_dis) {
-        exp_march_step *= cur_radius_clip;
-    }
-
-    cur_march_step = exp_march_step;
-
-    // Do not consider the first point in sampling, because the first point has no randomness in training.
-    if (FILL && !the_first_pts) {
-        sampled_world_pts[pts_ptr] = cur_xyz;
-        sampled_ts[pts_ptr] = cur_t;
-        sampled_oct_idx[pts_ptr] = cur_oct_idx;
-        sampled_dirs[pts_ptr] = rays_d;
-
-        QueryFrameTransform(cur_trans, cur_xyz, &fill_xyz);
-        sampled_dists[pts_ptr] = exp_march_step * (proj_xyz.norm() + 1e-6f);
-        sampled_pts[pts_ptr] = fill_xyz;
-        sampled_anchors[pts_ptr][0] = cur_node.trans_idx_;
-        sampled_anchors[pts_ptr][1] = cur_oct_idx;
-    }
-    if (!the_first_pts) {
-        pts_ptr += 1;
-    }
-
-    while (cur_t + cur_march_step > cur_far) {
-        oct_ptr++;
-        if (oct_ptr >= n_oct_nodes) {
-        break;
+        // Get march step
+        Watrix33f jac = Watrix33f::Zero();
+        const auto& cur_trans = octree_transes[cur_node.trans_idx_];
+        float cur_radius = (rays_o - cur_trans.center).norm() / cur_trans.dis_summary;
+        float cur_radius_clip = fmaxf(cur_radius, 1.f);
+        QueryFrameTransformJac(cur_trans, cur_xyz, &jac);
+        Wec3f proj_xyz = jac * rays_d;
+        float exp_march_step_warp = sample_l * rays_noise[pts_ptr];
+        exp_march_step = exp_march_step_warp / (proj_xyz.norm() + 1e-6f);
+        if (scale_by_dis) {
+            exp_march_step *= cur_radius_clip;
         }
-        cur_oct_idx = oct_intersect_idx[oct_ptr];
-        cur_near = oct_intersect_near_far[oct_ptr][0];
-        cur_far = oct_intersect_near_far[oct_ptr][1];
-        int ex_march_steps = ceilf(fmaxf((cur_near - cur_t) / exp_march_step, 1.f));
-        cur_march_step = exp_march_step * float(ex_march_steps);
-    }
-    cur_t += cur_march_step;
-    cur_xyz = rays_o + rays_d * cur_t;
-    the_first_pts = false;
+
+        cur_march_step = exp_march_step;
+
+        // Do not consider the first point in sampling, because the first point has no randomness in training.
+        if (FILL && !the_first_pts) {
+            sampled_world_pts[pts_ptr] = cur_xyz;
+            sampled_ts[pts_ptr] = cur_t;
+            sampled_oct_idx[pts_ptr] = cur_oct_idx;
+            sampled_dirs[pts_ptr] = rays_d;
+
+            QueryFrameTransform(cur_trans, cur_xyz, &fill_xyz);
+            sampled_dists[pts_ptr] = exp_march_step * (proj_xyz.norm() + 1e-6f);
+            sampled_pts[pts_ptr] = fill_xyz;
+            sampled_anchors[pts_ptr][0] = cur_node.trans_idx_;
+            sampled_anchors[pts_ptr][1] = cur_oct_idx;
+        }
+        if (!the_first_pts) {
+            pts_ptr += 1;
+        }
+
+        while (cur_t + cur_march_step > cur_far) {
+            oct_ptr++;
+            if (oct_ptr >= n_oct_nodes) {
+            break;
+            }
+            cur_oct_idx = oct_intersect_idx[oct_ptr];
+            cur_near = oct_intersect_near_far[oct_ptr][0];
+            cur_far = oct_intersect_near_far[oct_ptr][1];
+            int ex_march_steps = ceilf(fmaxf((cur_near - cur_t) / exp_march_step, 1.f));
+            cur_march_step = exp_march_step * float(ex_march_steps);
+        }
+        cur_t += cur_march_step;
+        cur_xyz = rays_o + rays_d * cur_t;
+        the_first_pts = false;
     }
 
     if (FILL) {
-    pts_idx_start_end[1] = pts_idx_start_end[0] + pts_ptr;
+        pts_idx_start_end[1] = pts_idx_start_end[0] + pts_ptr;
     }
     else {
-    pts_idx_start_end[0] = pts_ptr;
-    pts_idx_start_end[1] = pts_ptr;
+        pts_idx_start_end[0] = pts_ptr;
+        pts_idx_start_end[1] = pts_ptr;
     }
 }
 
@@ -345,7 +347,7 @@ SampleResultFlex OctreeMap::GetSamples(const Tensor& rays_o_raw, const Tensor& r
 
     dim3 block_dim = LIN_BLOCK_DIM(n_rays);
     dim3 grid_dim = LIN_GRID_DIM(n_rays);
-
+    
     FindRayOctreeIntersectionKernel<false><<<grid_dim, block_dim>>>(
         n_rays, max_oct_intersect_per_ray_,
         octree_->node_search_order_.data_ptr<uint8_t>(),
@@ -372,7 +374,7 @@ SampleResultFlex OctreeMap::GetSamples(const Tensor& rays_o_raw, const Tensor& r
         oct_intersect_idx.data_ptr<int>(), RE_INTER(Wec2f*, oct_intersect_near_far.data_ptr()),
         stack_info.data_ptr<int>());
 
-
+    
     // Second, do ray marching
     Tensor pts_idx_start_end = torch::zeros({ n_rays, 2 }, CUDAInt);
 
@@ -398,7 +400,7 @@ SampleResultFlex OctreeMap::GetSamples(const Tensor& rays_o_raw, const Tensor& r
         RE_INTER(Wec2i*, pts_idx_start_end.data_ptr()),
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
     );
-
+    // std::cout << pts_idx_start_end.index({0}) << std::endl;
     pts_idx_start_end.index_put_({Slc(), 0}, torch::cumsum(pts_idx_start_end.index({Slc(), 0}), 0));
 
     int n_all_pts = pts_idx_start_end.index({-1, 0}).item<int>();
@@ -428,7 +430,6 @@ SampleResultFlex OctreeMap::GetSamples(const Tensor& rays_o_raw, const Tensor& r
         sampled_oct_idx.data_ptr<int>(),
         first_oct_dis.data_ptr<float>()
     );
-
     return {
         sampled_pts,
         sampled_dirs,
@@ -485,7 +486,7 @@ __global__ void MarkInvalidNodes(int n_nodes, int* node_weight_stats, int* node_
     int oct_idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (oct_idx >= n_nodes) { return; }
     if (node_weight_stats[oct_idx] < 0 || node_alpha_stats[oct_idx] < 0) {
-    nodes[oct_idx].trans_idx_ = -1;
+        nodes[oct_idx].trans_idx_ = -1;
     }
 }
 
@@ -507,8 +508,8 @@ __global__ void MarkVistNodeKernel(int n_rays,
     float max_weight = 0.f;
     float max_alpha = 0.f;
     for (int pts_idx = pts_idx_start; pts_idx < pts_idx_end; pts_idx++) {
-    max_weight = fmaxf(max_weight, sampled_weights[pts_idx]);
-    max_alpha = fmaxf(max_alpha, sampled_alpha[pts_idx]);
+        max_weight = fmaxf(max_weight, sampled_weights[pts_idx]);
+        max_alpha = fmaxf(max_alpha, sampled_alpha[pts_idx]);
     }
 
     const float weight_thres = fminf(max_weight * REL_WEIGHT_THRES, ABS_WEIGHT_THRES);
@@ -519,27 +520,27 @@ __global__ void MarkVistNodeKernel(int n_rays,
     int cur_oct_idx = -1;
     int cur_visit_cnt = 0;
     for (int pts_idx = pts_idx_start; pts_idx < pts_idx_end; pts_idx++) {
-    if (cur_oct_idx != oct_indices[pts_idx]) {
-        if (cur_oct_idx >= 0) {
+        if (cur_oct_idx != oct_indices[pts_idx]) {
+            if (cur_oct_idx >= 0) {
+                atomicMax(visit_weight_adder + cur_oct_idx, cur_oct_weight > weight_thres ? OCC_WEIGHT_BASE : -1);
+                atomicMax(visit_alpha_adder + cur_oct_idx, cur_oct_alpha > alpha_thres ? OCC_ALPHA_BASE : -1);
+                atomicMax(visit_cnt + cur_oct_idx, cur_visit_cnt);
+                visit_mark[cur_oct_idx] = 1;
+            }
+            cur_oct_idx = oct_indices[pts_idx];
+            cur_oct_weight = 0.f;
+            cur_oct_alpha = 0.f;
+            cur_visit_cnt = 0;
+        }
+        cur_oct_weight = fmaxf(cur_oct_weight, sampled_weights[pts_idx]);
+        cur_oct_alpha = fmaxf(cur_oct_alpha, sampled_alpha[pts_idx]);
+        cur_visit_cnt += 1;
+    }
+    if (cur_oct_idx >= 0) {
         atomicMax(visit_weight_adder + cur_oct_idx, cur_oct_weight > weight_thres ? OCC_WEIGHT_BASE : -1);
         atomicMax(visit_alpha_adder + cur_oct_idx, cur_oct_alpha > alpha_thres ? OCC_ALPHA_BASE : -1);
         atomicMax(visit_cnt + cur_oct_idx, cur_visit_cnt);
         visit_mark[cur_oct_idx] = 1;
-        }
-        cur_oct_idx = oct_indices[pts_idx];
-        cur_oct_weight = 0.f;
-        cur_oct_alpha = 0.f;
-        cur_visit_cnt = 0;
-    }
-    cur_oct_weight = fmaxf(cur_oct_weight, sampled_weights[pts_idx]);
-    cur_oct_alpha = fmaxf(cur_oct_alpha, sampled_alpha[pts_idx]);
-    cur_visit_cnt += 1;
-    }
-    if (cur_oct_idx >= 0) {
-    atomicMax(visit_weight_adder + cur_oct_idx, cur_oct_weight > weight_thres ? OCC_WEIGHT_BASE : -1);
-    atomicMax(visit_alpha_adder + cur_oct_idx, cur_oct_alpha > alpha_thres ? OCC_ALPHA_BASE : -1);
-    atomicMax(visit_cnt + cur_oct_idx, cur_visit_cnt);
-    visit_mark[cur_oct_idx] = 1;
     }
 }
 
@@ -574,17 +575,17 @@ void OctreeMap::UpdateOctNodes(const SampleResultFlex& sample_result,
     CK_CONT(visit_cnt);
 
     {
-    dim3 block_dim = LIN_BLOCK_DIM(n_rays);
-    dim3 grid_dim  = LIN_GRID_DIM(n_rays);
-    MarkVistNodeKernel<<<grid_dim, block_dim>>>(n_rays,
-                                                pts_idx_start_end.data_ptr<int>(),
-                                                oct_indices.data_ptr<int>(),
-                                                sampled_weight.data_ptr<float>(),
-                                                sampled_alpha.data_ptr<float>(),
-                                                visit_weight_adder.data_ptr<int>(),
-                                                visit_alpha_adder.data_ptr<int>(),
-                                                visit_mark.data_ptr<int>(),
-                                                visit_cnt.data_ptr<int>());
+        dim3 block_dim = LIN_BLOCK_DIM(n_rays);
+        dim3 grid_dim  = LIN_GRID_DIM(n_rays);
+        MarkVistNodeKernel<<<grid_dim, block_dim>>>(n_rays,
+                                                    pts_idx_start_end.data_ptr<int>(),
+                                                    oct_indices.data_ptr<int>(),
+                                                    sampled_weight.data_ptr<float>(),
+                                                    sampled_alpha.data_ptr<float>(),
+                                                    visit_weight_adder.data_ptr<int>(),
+                                                    visit_alpha_adder.data_ptr<int>(),
+                                                    visit_mark.data_ptr<int>(),
+                                                    visit_cnt.data_ptr<int>());
 
     }
 

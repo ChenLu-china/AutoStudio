@@ -238,6 +238,82 @@ RenderResult OctreeMap::Render(const Tensor& rays_o,
     return { colors, sample_result_early_stop.first_oct_dis, disparity, edge_feat, depth, weights, idx_start_end };
 }
 
+Tensor OctreeMap::GetVisDensities(const Tensor& rays_o, const Tensor& rays_d, const Tensor& bounds)
+{
+    auto sample_result = GetSamples(rays_o, rays_d, bounds);
+    int n_all_pts = sample_result.pts.sizes()[0];
+    CHECK(sample_result.pts_idx_bounds.max().item<int>() <= n_all_pts);
+    CHECK(sample_result.pts_idx_bounds.min().item<int>() >= 0);
+    
+    Tensor densities;
+    if (n_all_pts <= 0){
+        return Tensor();
+    }
+    // std::cout << "rays_o size is:" <<  rays_o.sizes() << std::endl;
+    // std::cout << "sample_result.pts_idx_bounds size is:" << sample_result.pts_idx_bounds.sizes() << std::endl;
+    
+    CHECK_EQ(rays_o.sizes()[0], sample_result.pts_idx_bounds.sizes()[0]);
+
+    auto DensityAct = [](Tensor x) -> Tensor {
+        const float shift = 3.f;
+        return torch::autograd::TruncExp::apply(x - shift)[0];
+    };
+
+    // 
+    SampleResultFlex sample_result_early_stop;
+    {
+        Tensor pts = sample_result.pts;
+        Tensor dirs = sample_result.dirs;
+        Tensor anchors = sample_result.anchors.index({"...", 0}).contiguous();
+        
+        Tensor scene_feat = hashmap_->AnchoredQuery(pts, anchors);
+        Tensor sampled_density = DensityAct(scene_feat.index({ Slc(), Slc(0, 1) }));
+        
+        Tensor sampled_dt = sample_result.dt;
+        Tensor sampled_t = (sample_result.t + 1e-2f).contiguous();
+        Tensor sec_density = sampled_density.index({Slc(), 0}) * sampled_dt;
+        Tensor alphas = 1.f - torch::exp(-sec_density);
+        Tensor idx_start_end = sample_result.pts_idx_bounds;
+        Tensor acc_density = FlexOps::AccumulateSum(sec_density, idx_start_end, false);
+        Tensor trans = torch::exp(-acc_density);
+        Tensor weights = trans * alphas;
+        Tensor mask = trans > 1e-4f;
+        Tensor mask_idx = torch::where(mask)[0];
+
+
+        sample_result_early_stop.pts = sample_result.pts.index({mask_idx}).contiguous();
+        sample_result_early_stop.dirs = sample_result.dirs.index({mask_idx}).contiguous();
+        sample_result_early_stop.dt = sample_result.dt.index({mask_idx}).contiguous();
+        sample_result_early_stop.t = sample_result.t.index({mask_idx}).contiguous();
+        sample_result_early_stop.anchors = sample_result.anchors.index({mask_idx}).contiguous();
+
+        sample_result_early_stop.first_oct_dis = sample_result.first_oct_dis.clone();
+        sample_result_early_stop.pts_idx_bounds = FilterIdxBounds(sample_result.pts_idx_bounds, mask);
+
+        CHECK_EQ(sample_result_early_stop.pts_idx_bounds.max().item<int>(), sample_result_early_stop.pts.size(0));
+        
+        // std::cout << pts.sizes() << std::endl;
+        // std::cout << idx_start_end.index({0}) << std::endl;
+    }
+
+    Tensor scene_feat, edge_feat;
+    Tensor pts = sample_result_early_stop.pts;
+    Tensor dirs = sample_result_early_stop.dirs;
+    Tensor anchors = sample_result_early_stop.anchors.index({"...", 0}).contiguous();
+    n_all_pts = pts.size(0);
+
+    scene_feat = hashmap_->AnchoredQuery(pts, anchors); // [n_pts, feat_dim]
+    Tensor id_start_end = sample_result_early_stop.pts_idx_bounds;
+    Tensor sampled_density = DensityAct(scene_feat.index({Slc(), Slc(0, 1)}));
+    
+    // Tensor sampled_dt = sample_result_early_stop.dt;
+    // Tensor sampled_t = (sample_result_early_stop.t + 1e-2f).contiguous();
+    // Tensor alphas = 1.f - torch::exp(-sec_density);
+    return sampled_density;
+    // std::cout << sampled_density.sizes() << std::endl;
+    // std::cout << sampled_density.index({0}) << std::endl;
+}
+
 
 void OctreeMap::VisOctree()
 {
@@ -351,6 +427,10 @@ int OctreeMap::LoadStates(const std::vector<Tensor>& states, int idx)
     app_emb_.data().copy_(states[idx++].clone().to(torch::kCUDA).contiguous());
 
     return idx;
+}
+
+OctreeMap* ToChild(FieldModel* field){
+    return dynamic_cast<OctreeMap*>(field);
 }
 
 

@@ -59,6 +59,7 @@ include_directories(External/yaml-cpp/include)
 # eigen
 include_directories(External/eigen-3.4.0)
 include(src/dataset/dataset.cmake)
+include(src/geometry/geometry.cmake)
 include(src/utils/utils.cmake)
 include(src/modules/camera_manager/camera_manager.cmake)
 include(src/modules/common/common.cmake)

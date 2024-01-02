@@ -13,7 +13,8 @@
 #include "ModelPipline.h"
 #include "../utils/GlobalData.h"
 #include "../dataset/Dataset.h"
-
+#include "../geometry/MeshFactory.h"
+#include "../geometry/MeshExtractor.h"
 
 namespace AutoStudio
 {
@@ -27,9 +28,11 @@ public:
   Runner(const std::string& config_path);
 
   void Execute();
-
+  void Mesh();
   void Train();
   void Render();
+  void RenderAllImages();
+  
   void TestImages();
   void VisualizeImage(int idx);
   void UpdateAdaParams();
@@ -56,6 +59,7 @@ public:
   std::unique_ptr<Dataset> dataset_;
   std::unique_ptr<ModelPipline> model_pip_;
   std::unique_ptr<torch::optim::Adam> optimizer_;
+  std::unique_ptr<MeshExtractor> mesh_;
 };
 
 } //namespace AutoStudio

@@ -15,7 +15,7 @@
 #include "../modules/camera_manager/Image.h"
 #include "../modules/camera_manager/Camera.h"
 #include "../modules/camera_manager/Sampler.h"
-
+#include "../utils/Utils.h"
 
 namespace AutoStudio
 {
@@ -87,6 +87,7 @@ Dataset::Dataset(GlobalData *global_data):
 void Dataset::Normalize()
 {
   auto poses = GetFullC2W_Tensor(true);
+  ranges_ = GetFullData_Tensor("bound", true);
   // std::cout << poses[0] << std::endl;
   const auto& config = global_data_->config_["dataset"];
   Tensor cam_pos = poses.index({Slc(), Slc(0, 3), 3}).clone();
@@ -97,7 +98,7 @@ void Dataset::Normalize()
   poses.index_put_({Slc(), Slc(0, 3), 3}, cam_pos);
 
   poses_ = poses.contiguous();
-  std::cout << radius_ << std::endl;
+  std::cout << "radius is:" << radius_ << std::endl;
 
   c2w_ = poses_.clone();
   // std::cout << c2w_.sizes() << std::endl;
@@ -105,9 +106,11 @@ void Dataset::Normalize()
   w2c_.index_put_({Slc(), Slc(0, 3), Slc()}, c2w_.clone());
   w2c_ = torch::linalg_inv(w2c_);
   w2c_ = w2c_.index({Slc(), Slc(0, 3), Slc()}).contiguous();
-//   bounds_ = (bounds_ / radius_).contiguous();
+  ranges_ = (ranges_ / radius_).contiguous();
+  ranges_.clamp_(1e-2f, 1e9f);
+  global_data_->near_ = ranges_.min().item<float>();
 
-//   Utils::TensorExportPCD(global_data_pool_->base_exp_dir_ + "/cam_pos.ply", poses_.index({Slc(), Slc(0, 3), 3}));
+  TensorExportPCD(global_data_->base_exp_dir_ + "/cam_pos.ply", poses_.index({Slc(), Slc(0, 3), 3}));
 }
 
 void Dataset::UpdateNormProc()
@@ -117,8 +120,9 @@ void Dataset::UpdateNormProc()
     for (int j = 0; j < cameras_[i].n_images_; ++j) {
       cameras_[i].images_[j].c2w_.index_put_({Slc(), Slc()}, c2w_[i * n_camera_ + j]);
       cameras_[i].images_[j].w2c_ = w2c_[i * n_camera_ + j];
-      cameras_[i].images_[j].near_ = cameras_[i].images_[j].near_  / radius_;
-      cameras_[i].images_[j].far_ =  cameras_[i].images_[j].far_ / radius_;
+      cameras_[i].images_[j].near_ = ranges_.index({i * n_camera_ + j, 0}).item<float>();
+      // cameras_[i].images_[j].far_ = cameras_[i].images_[j].far_ / radius_;
+      cameras_[i].images_[j].far_ = ranges_.index({i * n_camera_ + j, 1}).item<float>();
       auto options = torch::TensorOptions().dtype(torch::kFloat64);
       // cameras_[i].images_[j].dist_param_ = torch::zeros({4}, options).to(torch::kFloat32);
       // std::cout << cameras_[i].images_[j].near_ << std::endl; 
